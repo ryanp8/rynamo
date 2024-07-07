@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package membership;
+
+option java_multiple_files =  true;
+option java_package = "com.rynamo.grpc.membership";
+option java_outer_classname = "MembershipProto";
+
+message RingEntryMessage {
+    string host = 1;
+    int32 port = 2;
+    int64 timestamp = 3;
+}
+
+message ClusterMessage {
+    repeated RingEntryMessage node = 1;
+}
+
+service ExchangeMembership {
+    rpc Exchange(ClusterMessage) returns (ClusterMessage);
+}
+
