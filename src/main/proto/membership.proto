@@ -7,7 +7,7 @@ option java_package = "com.rynamo.grpc.membership";
 option java_outer_classname = "MembershipProto";
 
 message RingEntryMessage {
-    string host = 1;
+    optional string host = 1;
     int32 port = 2;
     int64 timestamp = 3;
 }

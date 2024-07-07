@@ -71,19 +71,16 @@ public class RPCServer implements Runnable {
         public void exchange(ClusterMessage request, StreamObserver<ClusterMessage> responseObserver) {
 
             responseObserver.onNext(RPCServer.this.node.getRing().createClusterMessage());
-
-//            System.out.printf("received: %s\n",request);
             for (int i = 0; i < request.getNodeCount(); i++) {
                 RingEntryMessage r = request.getNode(i);
                 RingEntry myEntry = RPCServer.this.node.getRing().getEntry(i);
-//                System.out.println(r.getPort() + " " + myEntry.getPort() + " " + r.getTimestamp() + " " + myEntry.getTimestamp().getEpochSecond());
                 if (r.getTimestamp() > myEntry.getTimestamp().getEpochSecond()) {
                     if (!(r.getHost().equals(myEntry.getHost()) && r.getPort() == myEntry.getPort())) {
                         RPCServer.this.node.getRing().insertNode(r.getHost(), r.getPort());
                     }
                 }
             }
-            System.out.println(RPCServer.this.node.getRing());
+            System.out.printf("After receiving exchange: %s\n", RPCServer.this.node.getRing());
             responseObserver.onCompleted();
         }
     }

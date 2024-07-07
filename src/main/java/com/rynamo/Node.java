@@ -29,7 +29,7 @@ public class Node {
         this.ring.insertNode(this.host, this.port);
 
         // Seed node
-        this.ring.insertNode("localhost", 3000);
+        this.ring.insertNode("localhost", 8000);
     }
 
     public void startRPCServer() {
@@ -54,33 +54,31 @@ public class Node {
     }
 
     private void exchangeRings() {
-        RingEntry srcRingEntry = this.ring.getEntry(this.host, this.port);
-
+        int ringSize = this.ring.getSize();
         Random rand = new Random();
-        int idx = (int) (rand.nextLong() & 0xffff) % 4;
-        RingEntry entry = this.ring.getEntry(idx);
+        int idx = (int) (rand.nextLong() & 0xffff) % ringSize;
+        RingEntry dst = this.ring.getEntry(idx);
+
         int iters = 0;
-        while (entry.getHost().isEmpty() && iters < 4) {
-            entry = this.ring.getEntry((idx++) % 4);
+        while (dst.getHost().isEmpty() && iters < ringSize) {
+            dst = this.ring.getEntry((idx++) % ringSize);
             iters++;
         }
-        if (iters >= 4) {
+        if (iters >= ringSize || dst.getPort() == this.port) {
             return;
         }
 
-        if (srcRingEntry.getBlockingStub() == null) {
-            ManagedChannel channel = ManagedChannelBuilder.forAddress(entry.getHost(), entry.getPort()).usePlaintext().build();
-            srcRingEntry.setBlockingStub(ExchangeMembershipGrpc.newBlockingStub(channel));
-            srcRingEntry.setAsyncStub(ExchangeMembershipGrpc.newStub(channel));
+        if (dst.getBlockingStub() == null) {
+            ManagedChannel channel = ManagedChannelBuilder.forAddress(dst.getHost(), dst.getPort()).usePlaintext().build();
+            dst.setBlockingStub(ExchangeMembershipGrpc.newBlockingStub(channel));
+            dst.setAsyncStub(ExchangeMembershipGrpc.newStub(channel));
         }
 
         ClusterMessage cm = this.ring.createClusterMessage();
+        ClusterMessage dstEntries = dst.getBlockingStub().exchange(cm);
 
-//        System.out.printf("Sending to %d %s\n", srcRingEntry.getPort(), cm);
-        ClusterMessage other = srcRingEntry.getBlockingStub().exchange(cm);
-
-        for (int i = 0; i < other.getNodeCount(); i++) {
-            RingEntryMessage r = other.getNode(i);
+        for (int i = 0; i < dstEntries.getNodeCount(); i++) {
+            RingEntryMessage r = dstEntries.getNode(i);
             RingEntry myEntry = this.ring.getEntry(i);
             if (r.getTimestamp() > myEntry.getTimestamp().getEpochSecond()) {
                 if (!(r.getHost().equals(myEntry.getHost()) && r.getPort() == myEntry.getPort())) {
@@ -88,6 +86,6 @@ public class Node {
                 }
             }
         }
-        System.out.println(this.ring);
+        System.out.printf("After sending exchange: %s\n", this.ring);
     }
 }

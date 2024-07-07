@@ -1,12 +1,7 @@
 package com.rynamo.ring;
 
-import com.rynamo.Node;
 import com.rynamo.grpc.membership.ClusterMessage;
-import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
-import com.rynamo.grpc.membership.ExchangeMembershipGrpc.*;
 import com.rynamo.grpc.membership.RingEntryMessage;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 
 import java.net.URL;
 import java.security.*;
@@ -22,7 +17,7 @@ public class ConsistentHashRing {
     public ConsistentHashRing(int size) {
         this.size = size;
         this.ring = Stream.generate(RingEntry::new)
-                .limit(4)
+                .limit(size)
                 .collect(Collectors.toList());
     }
     public ConsistentHashRing(ConsistentHashRing copy) {
@@ -32,6 +27,10 @@ public class ConsistentHashRing {
 
     public List<RingEntry> getRing() {
         return this.ring;
+    }
+
+    public int getSize() {
+        return this.ring.size();
     }
 
     public int getEntryIdx(String host, int port) {
@@ -61,7 +60,7 @@ public class ConsistentHashRing {
 
     public void removeNode(String host, int port) {
         RingEntry target = this.getEntry(host, port);
-        target.setHost(null);
+        target.setHost("");
         target.setPort(-1);
     }
 
@@ -69,12 +68,10 @@ public class ConsistentHashRing {
         ClusterMessage.Builder builder = ClusterMessage.newBuilder();
         List<RingEntryMessage> entries = new ArrayList<>();
         for (RingEntry entry : this.ring) {
-            if (!entry.getHost().isEmpty()) {
-                String host = entry.getHost();
-                int port = entry.getPort();
-                long timestamp = entry.getTimestamp().getEpochSecond();
-                entries.add(RingEntryMessage.newBuilder().setHost(host).setPort(port).setTimestamp(timestamp).build());
-            }
+            String host = entry.getHost();
+            int port = entry.getPort();
+            long timestamp = entry.getTimestamp().getEpochSecond();
+            entries.add(RingEntryMessage.newBuilder().setHost(host).setPort(port).setTimestamp(timestamp).build());
         }
         builder.addAllNode(entries);
         return builder.build();
