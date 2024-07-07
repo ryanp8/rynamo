@@ -12,6 +12,8 @@ import java.net.URL;
 import java.security.*;
 import java.util.*;
 import java.nio.ByteBuffer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ConsistentHashRing {
     private List<RingEntry> ring;
@@ -19,7 +21,9 @@ public class ConsistentHashRing {
 
     public ConsistentHashRing(int size) {
         this.size = size;
-        this.ring = Arrays.asList(new RingEntry[size]);
+        this.ring = Stream.generate(RingEntry::new)
+                .limit(4)
+                .collect(Collectors.toList());
     }
     public ConsistentHashRing(ConsistentHashRing copy) {
         this.size = copy.size;
@@ -44,29 +48,31 @@ public class ConsistentHashRing {
         return this.ring.get(this.getEntryIdx(host, port));
     }
 
+    public RingEntry getEntry(int idx) {
+        return this.ring.get(idx);
+    }
 
-    public void addNode(String host, int port) {
+
+    public void insertNode(String host, int port) {
         int idx = this.getEntryIdx(host, port);
         RingEntry newEntry = new RingEntry(host, port);
         this.ring.set(idx, newEntry);
     }
 
     public void removeNode(String host, int port) {
-        RingEntry targetRing = this.getEntry(host, port);
-        if (targetRing != null) {
-            int targetRingIdx = this.getEntryIdx(host, port);
-            this.ring.set(targetRingIdx, null);
-        }
+        RingEntry target = this.getEntry(host, port);
+        target.setHost(null);
+        target.setPort(-1);
     }
 
     public ClusterMessage createClusterMessage() {
         ClusterMessage.Builder builder = ClusterMessage.newBuilder();
         List<RingEntryMessage> entries = new ArrayList<>();
         for (RingEntry entry : this.ring) {
-            if (entry != null) {
+            if (!entry.getHost().isEmpty()) {
                 String host = entry.getHost();
                 int port = entry.getPort();
-                long timestamp = entry.getUpdateTime().getEpochSecond();
+                long timestamp = entry.getTimestamp().getEpochSecond();
                 entries.add(RingEntryMessage.newBuilder().setHost(host).setPort(port).setTimestamp(timestamp).build());
             }
         }
@@ -76,6 +82,15 @@ public class ConsistentHashRing {
 
     @Override
     public String toString() {
-        return this.ring.toString();
+        StringBuilder str = new StringBuilder("[");
+        for (RingEntry entry : this.ring) {
+            if (entry.getHost().isEmpty()) {
+                str.append("{null, ").append(entry.getTimestamp().getEpochSecond()).append("}");
+            } else {
+                str.append("{").append(entry.getHost()).append(":").append(entry.getPort()).append(",").append(entry.getTimestamp().getEpochSecond()).append("}");
+            }
+            str.append(", ");
+        }
+        return str.toString();
     }
 }

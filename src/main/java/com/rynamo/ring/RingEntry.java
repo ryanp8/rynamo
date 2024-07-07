@@ -18,6 +18,8 @@ public class RingEntry {
     private ExchangeMembershipStub asyncStub;
 
     public RingEntry() {
+        this.host = "";
+        this.port = -1;
         this.updateTime = Instant.now();
     }
 
@@ -44,7 +46,7 @@ public class RingEntry {
         this.port = port;
     }
 
-    public Instant getUpdateTime() {
+    public Instant getTimestamp() {
         return this.updateTime;
     }
 
