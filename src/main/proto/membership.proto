@@ -18,5 +18,6 @@ message ClusterMessage {
 
 service ExchangeMembership {
     rpc Exchange(ClusterMessage) returns (ClusterMessage);
+    rpc GetMembership(ClusterMessage) returns (ClusterMessage);
 }
 

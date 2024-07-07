@@ -37,8 +37,10 @@ public class RPCServer implements Runnable {
 
     public void start() throws java.io.IOException, InterruptedException {
         this.server.start();
-        this.server.awaitTermination();
         this.setServerStatus(true);
+        System.out.println("Started server in separate thread");
+
+        this.server.awaitTermination();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             // Use stderr here since the logger may have been reset by its JVM shutdown hook.
             System.err.println("*** shutting down gRPC server since JVM is shutting down");
@@ -71,16 +73,15 @@ public class RPCServer implements Runnable {
         public void exchange(ClusterMessage request, StreamObserver<ClusterMessage> responseObserver) {
 
             responseObserver.onNext(RPCServer.this.node.getRing().createClusterMessage());
-            for (int i = 0; i < request.getNodeCount(); i++) {
-                RingEntryMessage r = request.getNode(i);
-                RingEntry myEntry = RPCServer.this.node.getRing().getEntry(i);
-                if (r.getTimestamp() > myEntry.getTimestamp().getEpochSecond()) {
-                    if (!(r.getHost().equals(myEntry.getHost()) && r.getPort() == myEntry.getPort())) {
-                        RPCServer.this.node.getRing().insertNode(r.getHost(), r.getPort());
-                    }
-                }
-            }
+//            System.out.printf("Received request: %s\n", request);
+            RPCServer.this.node.mergeRings(request);
             System.out.printf("After receiving exchange: %s\n", RPCServer.this.node.getRing());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void getMembership(ClusterMessage request, StreamObserver<ClusterMessage> responseObserver) {
+            responseObserver.onNext(RPCServer.this.node.getRing().createClusterMessage());
             responseObserver.onCompleted();
         }
     }

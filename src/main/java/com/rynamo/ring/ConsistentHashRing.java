@@ -1,7 +1,11 @@
 package com.rynamo.ring;
 
 import com.rynamo.grpc.membership.ClusterMessage;
+import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
+import com.rynamo.grpc.membership.ExchangeMembershipGrpc.*;
 import com.rynamo.grpc.membership.RingEntryMessage;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 
 import java.net.URL;
 import java.security.*;
@@ -20,9 +24,18 @@ public class ConsistentHashRing {
                 .limit(size)
                 .collect(Collectors.toList());
     }
-    public ConsistentHashRing(ConsistentHashRing copy) {
-        this.size = copy.size;
-        this.ring = copy.ring;
+
+    public void init(String host, int port) {
+        System.out.println("Initializing ring");
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 8000).usePlaintext().build();
+        ExchangeMembershipBlockingStub blockingStub = ExchangeMembershipGrpc.newBlockingStub(channel);
+        ClusterMessage dstEntries = blockingStub.getMembership(ClusterMessage.newBuilder().build());
+        for (RingEntryMessage node : dstEntries.getNodeList()) {
+            if (!node.getHost().isEmpty()) {
+                this.insertNode(node.getHost(), node.getPort());
+            }
+        }
+        this.insertNode(host, port);
     }
 
     public List<RingEntry> getRing() {
@@ -43,28 +56,28 @@ public class ConsistentHashRing {
         }
     }
 
-    public RingEntry getEntry(String host, int port) {
+    synchronized public RingEntry getEntry(String host, int port) {
         return this.ring.get(this.getEntryIdx(host, port));
     }
 
-    public RingEntry getEntry(int idx) {
+    synchronized public RingEntry getEntry(int idx) {
         return this.ring.get(idx);
     }
 
 
-    public void insertNode(String host, int port) {
+    synchronized public void insertNode(String host, int port) {
         int idx = this.getEntryIdx(host, port);
         RingEntry newEntry = new RingEntry(host, port);
         this.ring.set(idx, newEntry);
     }
 
-    public void removeNode(String host, int port) {
+    synchronized public void removeNode(String host, int port) {
         RingEntry target = this.getEntry(host, port);
         target.setHost("");
         target.setPort(-1);
     }
 
-    public ClusterMessage createClusterMessage() {
+    synchronized public ClusterMessage createClusterMessage() {
         ClusterMessage.Builder builder = ClusterMessage.newBuilder();
         List<RingEntryMessage> entries = new ArrayList<>();
         for (RingEntry entry : this.ring) {
@@ -79,14 +92,9 @@ public class ConsistentHashRing {
 
     @Override
     public String toString() {
-        StringBuilder str = new StringBuilder("[");
+        StringBuilder str = new StringBuilder();
         for (RingEntry entry : this.ring) {
-            if (entry.getHost().isEmpty()) {
-                str.append("{null, ").append(entry.getTimestamp().getEpochSecond()).append("}");
-            } else {
-                str.append("{").append(entry.getHost()).append(":").append(entry.getPort()).append(",").append(entry.getTimestamp().getEpochSecond()).append("}");
-            }
-            str.append(", ");
+            str.append(entry.toString());
         }
         return str.toString();
     }

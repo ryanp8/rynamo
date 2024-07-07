@@ -24,18 +24,15 @@ public class Node {
         this.server = new RPCServer(this.host, this.port, this);
 
         this.ring = new ConsistentHashRing(4);
-
-        // Add self to ring
-        this.ring.insertNode(this.host, this.port);
-
-        // Seed node
-        this.ring.insertNode("localhost", 8000);
     }
 
     public void startRPCServer() {
         Thread serverThread = new Thread(this.server);
         serverThread.start();
-        System.out.println("Started server in separate thread");
+        while (!this.server.getServerStatus()) {
+
+        }
+        this.ring.init(this.host, this.port);
     }
 
     public void startMembershipGossip() {
@@ -67,6 +64,10 @@ public class Node {
         if (iters >= ringSize || dst.getPort() == this.port) {
             return;
         }
+        this.exchangeRings(dst);
+    }
+
+    private void exchangeRings(RingEntry dst) {
 
         if (dst.getBlockingStub() == null) {
             ManagedChannel channel = ManagedChannelBuilder.forAddress(dst.getHost(), dst.getPort()).usePlaintext().build();
@@ -76,7 +77,13 @@ public class Node {
 
         ClusterMessage cm = this.ring.createClusterMessage();
         ClusterMessage dstEntries = dst.getBlockingStub().exchange(cm);
+        this.mergeRings(dstEntries);
 
+
+        System.out.printf("After sending exchange to %d: %s\n", dst.getPort(), this.ring);
+    }
+
+    void mergeRings(ClusterMessage dstEntries) {
         for (int i = 0; i < dstEntries.getNodeCount(); i++) {
             RingEntryMessage r = dstEntries.getNode(i);
             RingEntry myEntry = this.ring.getEntry(i);
@@ -86,6 +93,5 @@ public class Node {
                 }
             }
         }
-        System.out.printf("After sending exchange: %s\n", this.ring);
     }
 }

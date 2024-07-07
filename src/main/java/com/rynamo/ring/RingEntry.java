@@ -65,4 +65,15 @@ public class RingEntry {
     public void setAsyncStub(ExchangeMembershipStub asyncStub) {
         this.asyncStub = asyncStub;
     }
+
+    @Override
+    public String toString() {
+        StringBuilder str = new StringBuilder();
+        if (this.host.isEmpty()) {
+            str.append("{null, ").append(this.updateTime.getEpochSecond()).append("}");
+        } else {
+            str.append("{").append(this.host).append(":").append(this.port).append(",").append(this.updateTime.getEpochSecond()).append("}");
+        }
+        return str.toString();
+    }
 }
