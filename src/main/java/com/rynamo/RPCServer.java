@@ -1,9 +1,11 @@
 package com.rynamo;
 
+import com.rynamo.grpc.keyval.KeyMessage;
+import com.rynamo.grpc.keyval.*;
 import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
-import com.rynamo.grpc.membership.RingEntryMessage;
-import com.rynamo.ring.RingEntry;
+import com.rynamo.ring.ConsistentHashRing;
+import com.rynamo.ring.Node;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 
@@ -12,14 +14,10 @@ import java.util.concurrent.TimeUnit;
 
 public class RPCServer implements Runnable {
     private final Server server;
-    private final String host;
-    private final int port;
     private boolean serverStatus;
-    private Node node;
+    private final Node node;
 
     public RPCServer(String host, int port, Node node) {
-        this.host = host;
-        this.port = port;
         this.node = node;
         this.serverStatus = false;
         ServerBuilder<?> serverBuilder = Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create());
@@ -68,14 +66,12 @@ public class RPCServer implements Runnable {
         this.serverStatus = started;
     }
 
-    public class MembershipService extends ExchangeMembershipGrpc.ExchangeMembershipImplBase {
+    private class MembershipService extends ExchangeMembershipGrpc.ExchangeMembershipImplBase {
         @Override
         public void exchange(ClusterMessage request, StreamObserver<ClusterMessage> responseObserver) {
-
-            responseObserver.onNext(RPCServer.this.node.getRing().createClusterMessage());
-//            System.out.printf("Received request: %s\n", request);
-            RPCServer.this.node.mergeRings(request);
-            System.out.printf("After receiving exchange: %s\n", RPCServer.this.node.getRing());
+            ConsistentHashRing receiverRing = RPCServer.this.node.getRing();
+            responseObserver.onNext(receiverRing.createClusterMessage());
+            receiverRing.mergeRings(request);
             responseObserver.onCompleted();
         }
 
@@ -83,6 +79,18 @@ public class RPCServer implements Runnable {
         public void getMembership(ClusterMessage request, StreamObserver<ClusterMessage> responseObserver) {
             responseObserver.onNext(RPCServer.this.node.getRing().createClusterMessage());
             responseObserver.onCompleted();
+        }
+    }
+
+    private class KeyValService extends KeyValGrpc.KeyValImplBase {
+        @Override
+        public void get(KeyMessage request, StreamObserver<ValueMessage> responseObserver) {
+
+        }
+
+        @Override
+        public void put(KeyValMessage request, StreamObserver<ValueMessage> responseObserver) {
+
         }
     }
 }

@@ -1,10 +1,9 @@
-package com.rynamo;
+package com.rynamo.ring;
 
+import com.rynamo.RPCServer;
+import com.rynamo.db.DBClient;
 import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
-import com.rynamo.grpc.membership.RingEntryMessage;
-import com.rynamo.ring.ConsistentHashRing;
-import com.rynamo.ring.RingEntry;
 import io.grpc.*;
 
 import java.util.Random;
@@ -16,19 +15,20 @@ public class Node {
     private ConsistentHashRing ring;
     private final String host;
     private final int port;
+    private final DBClient db;
 
-    public Node(String host, int port) {
+    public Node(String host, int port) throws org.rocksdb.RocksDBException {
         this.host = host;
         this.port = port;
-
+        this.db = new DBClient(port);
         this.server = new RPCServer(this.host, this.port, this);
-
         this.ring = new ConsistentHashRing(4);
     }
 
     public void startRPCServer() {
         Thread serverThread = new Thread(this.server);
         serverThread.start();
+        // Wait until the server has started before we initialize the ring
         while (!this.server.getServerStatus()) {
 
         }
@@ -40,6 +40,7 @@ public class Node {
             @Override
             public void run() {
                 Node.this.exchangeRings();
+                System.out.println(Node.this.ring);
             }
         };
         Timer timer = new Timer();
@@ -53,11 +54,11 @@ public class Node {
     private void exchangeRings() {
         int ringSize = this.ring.getSize();
         Random rand = new Random();
-        int idx = (int) (rand.nextLong() & 0xffff) % ringSize;
+        int idx = (int) (rand.nextLong() & Integer.MAX_VALUE) % ringSize;
         RingEntry dst = this.ring.getEntry(idx);
 
         int iters = 0;
-        while (dst.getHost().isEmpty() && iters < ringSize) {
+        while (!dst.getActive() && iters < ringSize) {
             dst = this.ring.getEntry((idx++) % ringSize);
             iters++;
         }
@@ -77,21 +78,6 @@ public class Node {
 
         ClusterMessage cm = this.ring.createClusterMessage();
         ClusterMessage dstEntries = dst.getBlockingStub().exchange(cm);
-        this.mergeRings(dstEntries);
-
-
-        System.out.printf("After sending exchange to %d: %s\n", dst.getPort(), this.ring);
-    }
-
-    void mergeRings(ClusterMessage dstEntries) {
-        for (int i = 0; i < dstEntries.getNodeCount(); i++) {
-            RingEntryMessage r = dstEntries.getNode(i);
-            RingEntry myEntry = this.ring.getEntry(i);
-            if (r.getTimestamp() > myEntry.getTimestamp().getEpochSecond()) {
-                if (!(r.getHost().equals(myEntry.getHost()) && r.getPort() == myEntry.getPort())) {
-                    this.ring.insertNode(r.getHost(), r.getPort());
-                }
-            }
-        }
+        this.ring.mergeRings(dstEntries);
     }
 }

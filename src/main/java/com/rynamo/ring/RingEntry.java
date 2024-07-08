@@ -13,6 +13,7 @@ public class RingEntry {
     private String host;
     private int port;
     private Instant updateTime;
+    private boolean active;
 
     private ExchangeMembershipBlockingStub blockingStub;
     private ExchangeMembershipStub asyncStub;
@@ -20,13 +21,23 @@ public class RingEntry {
     public RingEntry() {
         this.host = "";
         this.port = -1;
+        this.active = false;
         this.updateTime = Instant.now();
     }
 
     public RingEntry(String host, int port) {
         this.host = host;
         this.port = port;
+        this.active = false;
         this.updateTime = Instant.now();
+    }
+
+    public boolean getActive() {
+        return this.active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public String getHost() {
@@ -44,6 +55,7 @@ public class RingEntry {
 
     public void setPort(int port) {
         this.port = port;
+        this.updateTime = Instant.now();
     }
 
     public Instant getTimestamp() {

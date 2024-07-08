@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package keyval;
+option java_multiple_files =  true;
+option java_package = "com.rynamo.grpc.keyval";
+option java_outer_classname = "KeyValProto";
+
+message KeyMessage {
+    string key = 1;
+}
+
+message ValueMessage {
+    bytes value = 1;
+}
+
+message KeyValMessage {
+    string key = 1;
+    bytes value = 2;
+}
+
+service KeyVal {
+    rpc Get(KeyMessage) returns (ValueMessage);
+    rpc Put(KeyValMessage) returns (ValueMessage);
+}

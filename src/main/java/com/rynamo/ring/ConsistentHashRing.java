@@ -66,15 +66,15 @@ public class ConsistentHashRing {
 
 
     synchronized public void insertNode(String host, int port) {
-        int idx = this.getEntryIdx(host, port);
-        RingEntry newEntry = new RingEntry(host, port);
-        this.ring.set(idx, newEntry);
+        RingEntry target = this.getEntry(host, port);
+        target.setHost(host);
+        target.setPort(port);
+        target.setActive(true);
     }
 
     synchronized public void removeNode(String host, int port) {
         RingEntry target = this.getEntry(host, port);
-        target.setHost("");
-        target.setPort(-1);
+        target.setActive(false);
     }
 
     synchronized public ClusterMessage createClusterMessage() {
@@ -88,6 +88,18 @@ public class ConsistentHashRing {
         }
         builder.addAllNode(entries);
         return builder.build();
+    }
+
+    public void mergeRings(ClusterMessage dstEntries) {
+        for (int i = 0; i < dstEntries.getNodeCount(); i++) {
+            RingEntryMessage r = dstEntries.getNode(i);
+            RingEntry myEntry = this.getEntry(i);
+            if (r.getTimestamp() > myEntry.getTimestamp().getEpochSecond()) {
+                if (!(r.getHost().equals(myEntry.getHost()) && r.getPort() == myEntry.getPort())) {
+                    this.insertNode(r.getHost(), r.getPort());
+                }
+            }
+        }
     }
 
     @Override
