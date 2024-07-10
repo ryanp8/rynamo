@@ -1,5 +1,6 @@
 package com.rynamo.ring;
 
+import com.rynamo.grpc.keyval.KeyValGrpc;
 import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc.*;
@@ -46,14 +47,18 @@ public class ConsistentHashRing {
         return this.ring.size();
     }
 
-    public int getEntryIdx(String host, int port) {
+    public int getIdx(String key) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
-            return (int) (ByteBuffer.wrap(md.digest((host+port).getBytes())).getLong() & 0xffff) % this.size;
+            return (int) (ByteBuffer.wrap(md.digest((key).getBytes())).getLong() & 0xffff) % this.size;
         } catch (NoSuchAlgorithmException e) {
             System.err.println("No such algorithm");
             return -1;
         }
+    }
+
+    public int getEntryIdx(String host, int port) {
+        return this.getIdx(host + port);
     }
 
     synchronized public RingEntry getEntry(String host, int port) {
@@ -70,6 +75,10 @@ public class ConsistentHashRing {
         target.setHost(host);
         target.setPort(port);
         target.setActive(true);
+
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(target.getHost(), target.getPort()).usePlaintext().build();
+        target.setExchangeBlockingStub(ExchangeMembershipGrpc.newBlockingStub(channel));
+        target.setKeyValBlockingStub(KeyValGrpc.newBlockingStub(channel));
     }
 
     synchronized public void removeNode(String host, int port) {

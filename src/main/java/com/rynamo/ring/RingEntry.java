@@ -1,5 +1,6 @@
 package com.rynamo.ring;
 
+import com.rynamo.grpc.keyval.KeyValGrpc.*;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc.*;
 import io.grpc.ManagedChannel;
@@ -15,9 +16,8 @@ public class RingEntry {
     private Instant updateTime;
     private boolean active;
 
-    private ExchangeMembershipBlockingStub blockingStub;
-    private ExchangeMembershipStub asyncStub;
-
+    private ExchangeMembershipBlockingStub exchangeBlockingStub;
+    private KeyValBlockingStub keyValBlockingStub;
     public RingEntry() {
         this.host = "";
         this.port = -1;
@@ -62,21 +62,29 @@ public class RingEntry {
         return this.updateTime;
     }
 
-    public ExchangeMembershipBlockingStub getBlockingStub() {
-        return this.blockingStub;
+    public ExchangeMembershipBlockingStub getExchangeBlockingStub() {
+        return this.exchangeBlockingStub;
     }
 
-    public ExchangeMembershipStub getAsyncStub() {
-        return this.asyncStub;
+//    public ExchangeMembershipStub getAsyncStub() {
+//        return this.asyncStub;
+//    }
+
+    public void setExchangeBlockingStub(ExchangeMembershipBlockingStub blockingStub) {
+        this.exchangeBlockingStub = blockingStub;
     }
 
-    public void setBlockingStub(ExchangeMembershipBlockingStub blockingStub) {
-        this.blockingStub = blockingStub;
+    public KeyValBlockingStub getKeyValBlockingStub() {
+        return this.keyValBlockingStub;
     }
 
-    public void setAsyncStub(ExchangeMembershipStub asyncStub) {
-        this.asyncStub = asyncStub;
+    public void setKeyValBlockingStub(KeyValBlockingStub stub) {
+        this.keyValBlockingStub = stub;
     }
+
+//    public void setAsyncStub(ExchangeMembershipStub asyncStub) {
+//        this.asyncStub = asyncStub;
+//    }
 
     @Override
     public String toString() {

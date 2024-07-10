@@ -19,13 +19,9 @@ message KeyValMessage {
     bytes value = 2;
 }
 
-message Quorum {
-    int32 R = 1;
-    int32 W = 2;
-}
-
 service KeyVal {
     rpc Get(KeyMessage) returns (ValueMessage);
     rpc Put(KeyValMessage) returns (ValueMessage);
-    rpc ForwardCoordination(KeyValMessage) returns (Quorum);
+    rpc ForwardCoordinateGet(KeyMessage) returns (ValueMessage);
+    rpc ForwardCoordinatePut(KeyValMessage) returns (ValueMessage);
 }

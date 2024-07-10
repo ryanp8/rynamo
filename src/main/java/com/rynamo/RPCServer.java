@@ -2,15 +2,18 @@ package com.rynamo;
 
 
 import com.google.protobuf.ByteString;
+import com.rynamo.coordinate.CoordinateResponse;
 import com.rynamo.grpc.keyval.*;
 import com.rynamo.grpc.membership.*;
 import com.rynamo.ring.ConsistentHashRing;
 import com.rynamo.ring.Node;
+import com.rynamo.ring.RingEntry;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class RPCServer implements Runnable {
@@ -22,7 +25,7 @@ public class RPCServer implements Runnable {
         this.node = node;
         this.serverStatus = false;
         ServerBuilder<?> serverBuilder = Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create());
-        this.server = serverBuilder.addService(new MembershipService()).build();
+        this.server = serverBuilder.addService(new MembershipService()).addService(new KeyValService()).build();
     }
 
     @Override
@@ -89,7 +92,8 @@ public class RPCServer implements Runnable {
             ValueMessage.Builder builder = ValueMessage.newBuilder();
             try {
                 byte[] dbResponse = RPCServer.this.node.getDB(request.getKey());
-                responseObserver.onNext(builder.setSuccess(true).setValue(ByteString.copyFrom(dbResponse)).build());
+                ByteString responseBytes = dbResponse == null ? ByteString.EMPTY : ByteString.copyFrom(dbResponse);
+                responseObserver.onNext(builder.setSuccess(true).setValue(responseBytes).build());
             } catch (RocksDBException e) {
                 responseObserver.onNext(builder.setSuccess(false).build());
             }
@@ -105,6 +109,20 @@ public class RPCServer implements Runnable {
             } catch (RocksDBException e) {
                 responseObserver.onNext(builder.setSuccess(false).build());
             }
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void forwardCoordinateGet(KeyMessage request, StreamObserver<ValueMessage> responseObserver) {
+            CoordinateResponse response = RPCServer.this.node.coordinateGet(request.getKey());
+            responseObserver.onNext(ValueMessage.newBuilder().setSuccess(true).setValue(ByteString.copyFrom(response.result)).build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void forwardCoordinatePut(KeyValMessage request, StreamObserver<ValueMessage> responseObserver) {
+            CoordinateResponse response = RPCServer.this.node.coordinatePut(request.getKey(), request.getValue().toByteArray());
+            responseObserver.onNext(ValueMessage.newBuilder().setSuccess(true).build());
             responseObserver.onCompleted();
         }
     }
