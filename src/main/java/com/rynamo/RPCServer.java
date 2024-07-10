@@ -1,13 +1,14 @@
 package com.rynamo;
 
-import com.rynamo.grpc.keyval.KeyMessage;
+
+import com.google.protobuf.ByteString;
 import com.rynamo.grpc.keyval.*;
-import com.rynamo.grpc.membership.ClusterMessage;
-import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
+import com.rynamo.grpc.membership.*;
 import com.rynamo.ring.ConsistentHashRing;
 import com.rynamo.ring.Node;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
+import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -85,12 +86,26 @@ public class RPCServer implements Runnable {
     private class KeyValService extends KeyValGrpc.KeyValImplBase {
         @Override
         public void get(KeyMessage request, StreamObserver<ValueMessage> responseObserver) {
-
+            ValueMessage.Builder builder = ValueMessage.newBuilder();
+            try {
+                byte[] dbResponse = RPCServer.this.node.getDB(request.getKey());
+                responseObserver.onNext(builder.setSuccess(true).setValue(ByteString.copyFrom(dbResponse)).build());
+            } catch (RocksDBException e) {
+                responseObserver.onNext(builder.setSuccess(false).build());
+            }
+            responseObserver.onCompleted();
         }
 
         @Override
         public void put(KeyValMessage request, StreamObserver<ValueMessage> responseObserver) {
-
+            ValueMessage.Builder builder = ValueMessage.newBuilder();
+            try {
+                RPCServer.this.node.putDB(request.getKey(), request.getValue().toByteArray());
+                responseObserver.onNext(builder.setSuccess(true).build());
+            } catch (RocksDBException e) {
+                responseObserver.onNext(builder.setSuccess(false).build());
+            }
+            responseObserver.onCompleted();
         }
     }
 }

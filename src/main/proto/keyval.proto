@@ -11,14 +11,21 @@ message KeyMessage {
 
 message ValueMessage {
     bytes value = 1;
+    bool success = 2;
 }
 
 message KeyValMessage {
-    string key = 1;
+    optional string key = 1;
     bytes value = 2;
+}
+
+message Quorum {
+    int32 R = 1;
+    int32 W = 2;
 }
 
 service KeyVal {
     rpc Get(KeyMessage) returns (ValueMessage);
     rpc Put(KeyValMessage) returns (ValueMessage);
+    rpc ForwardCoordination(KeyValMessage) returns (Quorum);
 }

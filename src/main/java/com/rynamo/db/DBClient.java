@@ -12,14 +12,9 @@ public class DBClient {
         this.db = RocksDB.open(options,String.format("./tmp/%d", port));
     }
 
-    public byte[] get(String key) {
+    public byte[] get(String key) throws RocksDBException {
         byte[] keyBytes = key.getBytes();
-        try {
-            return this.db.get(keyBytes);
-        } catch (RocksDBException e) {
-            System.err.println(e.getMessage());
-            return null;
-        }
+        return this.db.get(keyBytes);
     }
 
     public void put(String key, byte[] value) throws RocksDBException{

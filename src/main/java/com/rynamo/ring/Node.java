@@ -1,38 +1,43 @@
 package com.rynamo.ring;
 
 import com.rynamo.RPCServer;
+import com.rynamo.coordinate.CoordinateResponse;
 import com.rynamo.db.DBClient;
 import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
 import io.grpc.*;
+import org.rocksdb.RocksDBException;
 
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 public class Node {
     private final RPCServer server;
     private ConsistentHashRing ring;
     private final String host;
-    private final int port;
+    private final int rpcPort;
     private final DBClient db;
+    private final ClientServer clientServer;
 
-    public Node(String host, int port) throws org.rocksdb.RocksDBException {
+    public Node(String host, int rpcPort, int clientPort) throws org.rocksdb.RocksDBException {
         this.host = host;
-        this.port = port;
-        this.db = new DBClient(port);
-        this.server = new RPCServer(this.host, this.port, this);
+        this.rpcPort = rpcPort;
+        this.db = new DBClient(rpcPort);
+        this.server = new RPCServer(this.host, this.rpcPort, this);
+        this.clientServer = new ClientServer(clientPort, this);
         this.ring = new ConsistentHashRing(4);
     }
 
-    public void startRPCServer() {
+    public void startRPCServer() throws InterruptedException {
         Thread serverThread = new Thread(this.server);
         serverThread.start();
         // Wait until the server has started before we initialize the ring
         while (!this.server.getServerStatus()) {
-
+            TimeUnit.SECONDS.sleep(1);
         }
-        this.ring.init(this.host, this.port);
+        this.ring.init(this.host, this.rpcPort);
     }
 
     public void startMembershipGossip() {
@@ -62,7 +67,7 @@ public class Node {
             dst = this.ring.getEntry((idx++) % ringSize);
             iters++;
         }
-        if (iters >= ringSize || dst.getPort() == this.port) {
+        if (iters >= ringSize || dst.getPort() == this.rpcPort) {
             return;
         }
         this.exchangeRings(dst);
@@ -79,5 +84,21 @@ public class Node {
         ClusterMessage cm = this.ring.createClusterMessage();
         ClusterMessage dstEntries = dst.getBlockingStub().exchange(cm);
         this.ring.mergeRings(dstEntries);
+    }
+
+    public byte[] getDB(String key) throws RocksDBException {
+        return this.db.get(key);
+    }
+
+    public void putDB(String key, byte[] val) throws RocksDBException {
+        this.db.put(key, val);
+    }
+
+    public CoordinateResponse coordinateGet(String key) {
+        return null;
+    }
+
+    public CoordinateResponse coordinatePut(String key, byte[] val) {
+        return null;
     }
 }
