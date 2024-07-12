@@ -18,6 +18,7 @@ public class RingEntry {
 
     private ExchangeMembershipBlockingStub exchangeBlockingStub;
     private KeyValBlockingStub keyValBlockingStub;
+    private ManagedChannel chan;
     public RingEntry() {
         this.host = "";
         this.port = -1;
@@ -38,6 +39,7 @@ public class RingEntry {
 
     public void setActive(boolean active) {
         this.active = active;
+        this.updateTime = Instant.now();
     }
 
     public String getHost() {
@@ -62,6 +64,14 @@ public class RingEntry {
         return this.updateTime;
     }
 
+    public void closeConn() {
+        this.setActive(false);
+        this.chan.shutdown();
+    }
+
+    public void setChan(ManagedChannel chan) {
+        this.chan = chan;
+    }
     public ExchangeMembershipBlockingStub getExchangeBlockingStub() {
         return this.exchangeBlockingStub;
     }

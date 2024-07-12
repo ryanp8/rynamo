@@ -28,11 +28,11 @@ public class ConsistentHashRing {
 
     public void init(String host, int port) {
         System.out.println("Initializing ring");
-        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 8000).usePlaintext().build();
-        ExchangeMembershipBlockingStub blockingStub = ExchangeMembershipGrpc.newBlockingStub(channel);
-        ClusterMessage dstEntries = blockingStub.getMembership(ClusterMessage.newBuilder().build());
+        this.insertNode("localhost", 8000);
+        var stub = this.getEntry("localhost", 8000).getExchangeBlockingStub();
+        ClusterMessage dstEntries = stub.getMembership(ClusterMessage.newBuilder().build());
         for (RingEntryMessage node : dstEntries.getNodeList()) {
-            if (!node.getHost().isEmpty()) {
+            if (node.getActive()) {
                 this.insertNode(node.getHost(), node.getPort());
             }
         }
@@ -77,13 +77,14 @@ public class ConsistentHashRing {
         target.setActive(true);
 
         ManagedChannel channel = ManagedChannelBuilder.forAddress(target.getHost(), target.getPort()).usePlaintext().build();
+        target.setChan(channel);
         target.setExchangeBlockingStub(ExchangeMembershipGrpc.newBlockingStub(channel));
         target.setKeyValBlockingStub(KeyValGrpc.newBlockingStub(channel));
     }
 
-    synchronized public void removeNode(String host, int port) {
-        RingEntry target = this.getEntry(host, port);
-        target.setActive(false);
+    synchronized public void removeNode(int idx) {
+        RingEntry target = this.getEntry(idx);
+        target.closeConn();
     }
 
     synchronized public ClusterMessage createClusterMessage() {
@@ -112,8 +113,8 @@ public class ConsistentHashRing {
                     if (!myEntry.getActive() || !(r.getHost().equals(myEntry.getHost()) && r.getPort() == myEntry.getPort())) {
                         this.insertNode(r.getHost(), r.getPort());
                     }
-                } else {
-                    myEntry.setActive(false);
+                } else if (myEntry.getActive()) {
+                    this.removeNode(i);
                 }
             }
         }

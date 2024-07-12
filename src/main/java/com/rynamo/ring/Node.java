@@ -57,7 +57,7 @@ public class Node {
             }
         };
         Timer timer = new Timer();
-        timer.scheduleAtFixedRate(exchangeTimerTask, 1000, 1000);
+        timer.scheduleAtFixedRate(exchangeTimerTask, 0, 3000);
     }
 
     public ConsistentHashRing getRing() {
@@ -91,24 +91,18 @@ public class Node {
         }
 
         // If the first node in the preference list is inactive, then the idx will be
-        // incremented in the while loop, so we need to subtract one from the final idx
-        // if the while loop was entered
-        if (iters == 0) {
-            this.exchangeRings(idx, dst);
-        } else {
-            this.exchangeRings(idx - 1, dst);
-        }
+        this.exchangeRings(dst);
     }
 
 
-    private void exchangeRings(int idx, RingEntry dst) {
+    private void exchangeRings(RingEntry dst) {
         ClusterMessage cm = this.ring.createClusterMessage();
         try {
             ClusterMessage dstEntries = dst.getExchangeBlockingStub().exchange(cm);
             this.ring.mergeRings(dstEntries);
         } catch (StatusRuntimeException e) {
-            System.out.println(idx);
-            this.ring.getEntry(idx).setActive(false);
+            System.err.printf("Tried to exchange with %s but dst was unavailable\n", dst);
+            dst.closeConn();
         }
     }
 
@@ -125,33 +119,43 @@ public class Node {
         int reads = 0;
         byte[] oneResponse = {};
         for (var entry : preferenceList) {
-            if (entry.getActive()) {
-                KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
-                ValueMessage response = stub.get(KeyMessage.newBuilder().setKey(key).build());
-                if (response.getSuccess()) {
-                    oneResponse = response.getValue().toByteArray();
-                    if (reads++ == this.R) {
-                        break;
+            try {
+                if (entry.getActive()) {
+                    KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
+                    ValueMessage response = stub.get(KeyMessage.newBuilder().setKey(key).build());
+                    if (response.getSuccess()) {
+                        oneResponse = response.getValue().toByteArray();
+                        if (reads++ == this.R) {
+                            break;
+                        }
                     }
                 }
+            } catch (StatusRuntimeException e) {
+                entry.closeConn();
             }
+
         }
-        return new CoordinateResponse(R, 0, oneResponse);
+        return new CoordinateResponse(reads, 0, oneResponse);
     }
 
     public CoordinateResponse coordinatePut(String key, byte[] val) {
         List<RingEntry> preferenceList = this.getPreferenceList(key);
         int writes = 0;
         for (var entry : preferenceList) {
-            if (entry.getActive()) {
-                KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
-                ValueMessage response = stub.put(KeyValMessage.newBuilder().setKey(key).setValue(ByteString.copyFrom(val)).build());
-                if (response.getSuccess()) {
-                    if (writes++ == this.W) {
-                        break;
+            try {
+                if (entry.getActive()) {
+                    KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
+                    ValueMessage response = stub.put(KeyValMessage.newBuilder().setKey(key).setValue(ByteString.copyFrom(val)).build());
+                    if (response.getSuccess()) {
+                        if (writes++ == this.W) {
+                            break;
+                        }
                     }
                 }
+            } catch (StatusRuntimeException e) {
+                entry.closeConn();
             }
+
         }
         return new CoordinateResponse(0, writes, null);
     }
