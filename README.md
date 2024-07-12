@@ -8,7 +8,7 @@ A replicated and highly available key value store built to learn more about dist
 - `PUT /{key}/{value}`
 
 ## Design
-- Currently, `localhost:8000` is used as a seed node. All new nodes know it exists, so they are able to communicate with it to exchange membership data.
+- Currently, `localhost:8000` is used as a seed node. Its client server runs on `localhost:3000` All new nodes know it exists, so they are able to communicate with it to exchange membership data.
 - Every 3 seconds, a node will contact another node that it is aware of and try to exchange/merge membership histories based on the timestamp of the last update.
 - Each node has a gRPC server and a http server ([Javalin](https://javalin.io/))
     - gRPC is used to communicate within the cluster
