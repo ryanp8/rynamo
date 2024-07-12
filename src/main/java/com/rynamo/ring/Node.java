@@ -15,7 +15,9 @@ import java.util.concurrent.TimeUnit;
 
 public class Node {
     private final RPCServer server;
-    private final int N;
+    public final int N;
+    public final int R;
+    public final int W;
     private ConsistentHashRing ring;
     private final String host;
     private final int rpcPort;
@@ -23,9 +25,11 @@ public class Node {
     private final DBClient db;
     private final ClientServer clientServer;
 
-    public Node(String host, int N, int rpcPort, int clientPort) throws org.rocksdb.RocksDBException {
+    public Node(String host, int N, int R, int W, int rpcPort, int clientPort) throws org.rocksdb.RocksDBException {
         this.host = host;
         this.N = N;
+        this.R = R;
+        this.W = W;
         this.rpcPort = rpcPort;
         this.clientPort = clientPort;
         this.db = new DBClient(rpcPort);
@@ -49,11 +53,11 @@ public class Node {
             @Override
             public void run() {
                 Node.this.exchangeRings();
-                System.out.println(Node.this.ring);
+                System.out.println(Node.this.getRing());
             }
         };
         Timer timer = new Timer();
-        timer.scheduleAtFixedRate(exchangeTimerTask, 3000, 3000);
+        timer.scheduleAtFixedRate(exchangeTimerTask, 1000, 1000);
     }
 
     public ConsistentHashRing getRing() {
@@ -85,14 +89,27 @@ public class Node {
         if (iters >= ringSize || dst.getPort() == this.rpcPort) {
             return;
         }
-        this.exchangeRings(dst);
+
+        // If the first node in the preference list is inactive, then the idx will be
+        // incremented in the while loop, so we need to subtract one from the final idx
+        // if the while loop was entered
+        if (iters == 0) {
+            this.exchangeRings(idx, dst);
+        } else {
+            this.exchangeRings(idx - 1, dst);
+        }
     }
 
 
-    private void exchangeRings(RingEntry dst) {
+    private void exchangeRings(int idx, RingEntry dst) {
         ClusterMessage cm = this.ring.createClusterMessage();
-        ClusterMessage dstEntries = dst.getExchangeBlockingStub().exchange(cm);
-        this.ring.mergeRings(dstEntries);
+        try {
+            ClusterMessage dstEntries = dst.getExchangeBlockingStub().exchange(cm);
+            this.ring.mergeRings(dstEntries);
+        } catch (StatusRuntimeException e) {
+            System.out.println(idx);
+            this.ring.getEntry(idx).setActive(false);
+        }
     }
 
     public byte[] getDB(String key) throws RocksDBException {
@@ -105,17 +122,17 @@ public class Node {
 
     public CoordinateResponse coordinateGet(String key) {
         List<RingEntry> preferenceList = this.getPreferenceList(key);
-        int R = 0;
+        int reads = 0;
         byte[] oneResponse = {};
         for (var entry : preferenceList) {
             if (entry.getActive()) {
                 KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
                 ValueMessage response = stub.get(KeyMessage.newBuilder().setKey(key).build());
-                System.out.println("coordinateGet: " + response);
                 if (response.getSuccess()) {
                     oneResponse = response.getValue().toByteArray();
-                    R++;
-                    break;
+                    if (reads++ == this.R) {
+                        break;
+                    }
                 }
             }
         }
@@ -124,16 +141,18 @@ public class Node {
 
     public CoordinateResponse coordinatePut(String key, byte[] val) {
         List<RingEntry> preferenceList = this.getPreferenceList(key);
-        int W = 0;
+        int writes = 0;
         for (var entry : preferenceList) {
             if (entry.getActive()) {
                 KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
                 ValueMessage response = stub.put(KeyValMessage.newBuilder().setKey(key).setValue(ByteString.copyFrom(val)).build());
                 if (response.getSuccess()) {
-                    W++;
+                    if (writes++ == this.W) {
+                        break;
+                    }
                 }
             }
         }
-        return new CoordinateResponse(0, W, null);
+        return new CoordinateResponse(0, writes, null);
     }
 }

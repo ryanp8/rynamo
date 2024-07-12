@@ -93,7 +93,11 @@ public class ConsistentHashRing {
             String host = entry.getHost();
             int port = entry.getPort();
             long timestamp = entry.getTimestamp().getEpochSecond();
-            entries.add(RingEntryMessage.newBuilder().setHost(host).setPort(port).setTimestamp(timestamp).build());
+            if (entry.getActive()) {
+                entries.add(RingEntryMessage.newBuilder().setActive(true).setHost(host).setPort(port).setTimestamp(timestamp).build());
+            } else {
+                entries.add(RingEntryMessage.newBuilder().setActive(false).setTimestamp(timestamp).build());
+            }
         }
         builder.addAllNode(entries);
         return builder.build();
@@ -104,8 +108,12 @@ public class ConsistentHashRing {
             RingEntryMessage r = dstEntries.getNode(i);
             RingEntry myEntry = this.getEntry(i);
             if (r.getTimestamp() > myEntry.getTimestamp().getEpochSecond()) {
-                if (!(r.getHost().equals(myEntry.getHost()) && r.getPort() == myEntry.getPort())) {
-                    this.insertNode(r.getHost(), r.getPort());
+                if (r.getActive()) {
+                    if (!myEntry.getActive() || !(r.getHost().equals(myEntry.getHost()) && r.getPort() == myEntry.getPort())) {
+                        this.insertNode(r.getHost(), r.getPort());
+                    }
+                } else {
+                    myEntry.setActive(false);
                 }
             }
         }

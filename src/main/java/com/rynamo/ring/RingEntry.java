@@ -89,10 +89,10 @@ public class RingEntry {
     @Override
     public String toString() {
         StringBuilder str = new StringBuilder();
-        if (this.host.isEmpty()) {
-            str.append("{null, ").append(this.updateTime.getEpochSecond()).append("}");
-        } else {
+        if (this.getActive()) {
             str.append("{").append(this.host).append(":").append(this.port).append(",").append(this.updateTime.getEpochSecond()).append("}");
+        } else {
+            str.append("{null, ").append(this.updateTime.getEpochSecond()).append("}");
         }
         return str.toString();
     }

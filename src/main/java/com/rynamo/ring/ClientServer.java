@@ -27,13 +27,15 @@ public class ClientServer {
         String key = ctx.pathParam("key");
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         for (var entry : preferenceList) {
+            System.out.println(entry.getActive());
             if (entry.getActive()) {
                 ValueMessage response = entry.getKeyValBlockingStub().forwardCoordinateGet(KeyMessage.newBuilder().setKey(key).build());
+                System.out.println("response: " + response.getSuccess());
                 if (response.getSuccess()) {
                     ctx.status(200);
                     ctx.result(response.getValue().toByteArray());
+                    return;
                 }
-                return;
             }
         }
         ctx.status(400);
@@ -51,8 +53,8 @@ public class ClientServer {
                 if (response.getSuccess()) {
                     ctx.status(200);
                     ctx.result(response.getValue().toByteArray());
+                    return;
                 }
-                return;
             }
         }
         ctx.status(400);

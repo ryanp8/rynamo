@@ -92,8 +92,9 @@ public class RPCServer implements Runnable {
             ValueMessage.Builder builder = ValueMessage.newBuilder();
             try {
                 byte[] dbResponse = RPCServer.this.node.getDB(request.getKey());
-                ByteString responseBytes = dbResponse == null ? ByteString.EMPTY : ByteString.copyFrom(dbResponse);
-                responseObserver.onNext(builder.setSuccess(true).setValue(responseBytes).build());
+                boolean isEmpty = dbResponse == null;
+                ByteString responseBytes = isEmpty ? ByteString.EMPTY : ByteString.copyFrom(dbResponse);
+                responseObserver.onNext(builder.setSuccess(!isEmpty).setValue(responseBytes).build());
             } catch (RocksDBException e) {
                 responseObserver.onNext(builder.setSuccess(false).build());
             }
@@ -114,15 +115,20 @@ public class RPCServer implements Runnable {
 
         @Override
         public void forwardCoordinateGet(KeyMessage request, StreamObserver<ValueMessage> responseObserver) {
+            System.out.println("running forwardCoordinateGet");
             CoordinateResponse response = RPCServer.this.node.coordinateGet(request.getKey());
-            responseObserver.onNext(ValueMessage.newBuilder().setSuccess(true).setValue(ByteString.copyFrom(response.result)).build());
+            boolean success = response.R >= RPCServer.this.node.R;
+            System.out.println(success + " W: " + response.W + ", R: " + response.R);
+            responseObserver.onNext(ValueMessage.newBuilder().setSuccess(success).setValue(ByteString.copyFrom(response.result)).build());
             responseObserver.onCompleted();
         }
 
         @Override
         public void forwardCoordinatePut(KeyValMessage request, StreamObserver<ValueMessage> responseObserver) {
             CoordinateResponse response = RPCServer.this.node.coordinatePut(request.getKey(), request.getValue().toByteArray());
-            responseObserver.onNext(ValueMessage.newBuilder().setSuccess(true).build());
+            boolean success = response.W >= RPCServer.this.node.W;
+            System.out.println(success + " W: " + response.W + ", R: " + response.R);
+            responseObserver.onNext(ValueMessage.newBuilder().setSuccess(success).build());
             responseObserver.onCompleted();
         }
     }
