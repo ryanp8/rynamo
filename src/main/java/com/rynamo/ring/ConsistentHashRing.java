@@ -28,8 +28,8 @@ public class ConsistentHashRing {
 
     public void init(String host, int port) {
         System.out.println("Initializing ring");
-        this.insertNode("localhost", 8000);
-        var stub = this.getEntry("localhost", 8000).getExchangeBlockingStub();
+        this.insertNode("rynamo-seed", 8000);
+        var stub = this.getEntry("rynamo-seed", 8000).getExchangeBlockingStub();
         ClusterMessage dstEntries = stub.getMembership(ClusterMessage.newBuilder().build());
         for (RingEntryMessage node : dstEntries.getNodeList()) {
             if (node.getActive()) {

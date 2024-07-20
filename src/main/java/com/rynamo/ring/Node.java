@@ -35,7 +35,7 @@ public class Node {
         this.db = new DBClient(rpcPort);
         this.server = new RPCServer(this.host, this.rpcPort, this);
         this.clientServer = new ClientServer(clientPort, this);
-        this.ring = new ConsistentHashRing(4);
+        this.ring = new ConsistentHashRing(5);
     }
 
     public void startRPCServer() throws InterruptedException {

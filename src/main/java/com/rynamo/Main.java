@@ -1,8 +1,6 @@
 package com.rynamo;
 
-import com.rynamo.db.DBClient;
 import com.rynamo.ring.Node;
-import org.rocksdb.RocksDB;
 
 public class Main {
     public static void main(String[] args) {
