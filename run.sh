@@ -12,5 +12,5 @@ for ((i = 0; i < $CLUSTER_SIZE; i++))
         if [ $i == 0 ]; then
             NAME=rynamo-seed
         fi
-        docker run -d --network rynamo-network -p $GRPC_PORT -p $CLIENT_PORT --name $NAME --rm rynamo mvn exec:java -Dexec.args="$NAME $GRPC_PORT $CLIENT_PORT"
+        docker run -d --network rynamo-network --name $NAME --rm rynamo mvn exec:java -Dexec.args="$NAME $GRPC_PORT $CLIENT_PORT"
 done
