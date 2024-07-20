@@ -7,13 +7,11 @@ import com.rynamo.grpc.keyval.*;
 import com.rynamo.grpc.membership.*;
 import com.rynamo.ring.ConsistentHashRing;
 import com.rynamo.ring.Node;
-import com.rynamo.ring.RingEntry;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
-import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class RPCServer implements Runnable {

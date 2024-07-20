@@ -1,14 +1,11 @@
 package com.rynamo.ring;
 
 import com.google.protobuf.ByteString;
-import com.rynamo.coordinate.CoordinateResponse;
 import com.rynamo.grpc.keyval.KeyMessage;
 import com.rynamo.grpc.keyval.KeyValMessage;
 import com.rynamo.grpc.keyval.ValueMessage;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
-import io.javalin.http.Handler;
-import org.rocksdb.RocksDBException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;

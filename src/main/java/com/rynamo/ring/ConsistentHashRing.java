@@ -3,12 +3,10 @@ package com.rynamo.ring;
 import com.rynamo.grpc.keyval.KeyValGrpc;
 import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
-import com.rynamo.grpc.membership.ExchangeMembershipGrpc.*;
 import com.rynamo.grpc.membership.RingEntryMessage;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
-import java.net.URL;
 import java.security.*;
 import java.util.*;
 import java.nio.ByteBuffer;
