@@ -7,8 +7,7 @@ for ((i = 0; i < $CLUSTER_SIZE; i++))
         if [ $i == 0 ]; then
             docker stop rynamo-seed
         else
-            let "PORT=8000+$i"
-            NAME=rynamo-$PORT
+            NAME=rynamo-$i
             docker stop $NAME
         fi
 

@@ -86,11 +86,10 @@ public class Node {
             dst = this.ring.getEntry((idx++) % ringSize);
             iters++;
         }
-        if (iters >= ringSize || dst.getPort() == this.rpcPort) {
+        if (iters >= ringSize || dst.getHost().equals(this.host)) {
             return;
         }
 
-        // If the first node in the preference list is inactive, then the idx will be
         this.exchangeRings(dst);
     }
 

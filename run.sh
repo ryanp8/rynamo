@@ -1,16 +1,14 @@
 #!/bin/sh
 
-# docker build -t rynamo .
+docker build -t rynamo .
 
 CLUSTER_SIZE=3
 
 for ((i = 0; i < $CLUSTER_SIZE; i++))
     do
-        let "CLIENT_PORT=3000+$i"
-        let "GRPC_PORT=8000+$i"
-        NAME=rynamo-$GRPC_PORT
+        NAME=rynamo-$i
         if [ $i == 0 ]; then
             NAME=rynamo-seed
         fi
-        docker run -d --network rynamo-network --name $NAME --rm rynamo mvn exec:java -Dexec.args="$NAME $GRPC_PORT $CLIENT_PORT"
+        docker run -d --network rynamo-network --name $NAME --rm rynamo mvn exec:java -Dexec.args="$NAME 8000 3000"
 done

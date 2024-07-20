@@ -18,9 +18,15 @@ public class ClientServer {
     public ClientServer(int port, Node node) {
         this.node = node;
         Javalin.create()
+                .get("/health", this::handleHealth)
                 .get("/{key}", this::handleGet)
                 .put("/{key}/{val}", this::handlePut)
                 .start(port);
+    }
+
+    private void handleHealth(Context ctx) {
+        ctx.result("Success");
+        ctx.status(200);
     }
 
     private void handleGet(Context ctx) {
