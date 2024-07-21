@@ -1,0 +1,30 @@
+services:
+  client:
+    container_name: client
+    build:
+      dockerfile_inline: |
+        FROM alpine:latest
+        RUN apk add curl
+    stdin_open: true
+    tty: true
+    networks:
+      - cluster
+  node:
+    build:
+      dockerfile_inline: |
+        FROM "maven:3.9.8-eclipse-temurin-22"
+        COPY . .
+        RUN mvn clean install
+    ports:
+      - 3000:3000
+      - 8000:8000
+    networks:
+      - cluster
+    environment:
+      NAME: ${NAME}
+    command: sh -c 'mvn exec:java -Dexec.args="$$NAME 8000 3000"'
+
+
+networks:
+  cluster:
+    driver: bridge

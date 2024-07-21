@@ -19,7 +19,7 @@ public class RPCServer implements Runnable {
     private boolean serverStatus;
     private final Node node;
 
-    public RPCServer(String host, int port, Node node) {
+    public RPCServer(int port, Node node) {
         this.node = node;
         this.serverStatus = false;
         ServerBuilder<?> serverBuilder = Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create());

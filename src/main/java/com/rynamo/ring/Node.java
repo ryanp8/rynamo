@@ -6,7 +6,6 @@ import com.rynamo.coordinate.CoordinateResponse;
 import com.rynamo.db.DBClient;
 import com.rynamo.grpc.keyval.*;
 import com.rynamo.grpc.membership.ClusterMessage;
-import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
 import io.grpc.*;
 import org.rocksdb.RocksDBException;
 
@@ -25,15 +24,15 @@ public class Node {
     private final DBClient db;
     private final ClientServer clientServer;
 
-    public Node(String host, int N, int R, int W, int rpcPort, int clientPort) throws org.rocksdb.RocksDBException {
-        this.host = host;
+    public Node(int N, int R, int W, String host, int rpcPort, int clientPort) throws org.rocksdb.RocksDBException {
         this.N = N;
         this.R = R;
         this.W = W;
+        this.host = host;
         this.rpcPort = rpcPort;
         this.clientPort = clientPort;
         this.db = new DBClient(rpcPort);
-        this.server = new RPCServer(this.host, this.rpcPort, this);
+        this.server = new RPCServer(this.rpcPort, this);
         this.clientServer = new ClientServer(clientPort, this);
         this.ring = new ConsistentHashRing(5);
     }
@@ -45,7 +44,7 @@ public class Node {
         while (!this.server.getServerStatus()) {
             TimeUnit.SECONDS.sleep(1);
         }
-        this.ring.init(this.host, this.rpcPort);
+        this.ring.init(host, this.rpcPort);
     }
 
     public void startMembershipGossip() {
@@ -86,7 +85,7 @@ public class Node {
             dst = this.ring.getEntry((idx++) % ringSize);
             iters++;
         }
-        if (iters >= ringSize || dst.getHost().equals(this.host)) {
+        if (iters >= ringSize) {
             return;
         }
 
@@ -117,7 +116,8 @@ public class Node {
         List<RingEntry> preferenceList = this.getPreferenceList(key);
         int reads = 0;
         byte[] oneResponse = {};
-        for (var entry : preferenceList) {
+        for (int i = 0; i < this.N; i++) {
+            var entry = preferenceList.get(i);
             try {
                 if (entry.getActive()) {
                     KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
@@ -140,7 +140,8 @@ public class Node {
     public CoordinateResponse coordinatePut(String key, byte[] val) {
         List<RingEntry> preferenceList = this.getPreferenceList(key);
         int writes = 0;
-        for (var entry : preferenceList) {
+        for (int i = 0; i < this.N; i++) {
+            var entry = preferenceList.get(i);
             try {
                 if (entry.getActive()) {
                     KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
