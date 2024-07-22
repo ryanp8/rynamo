@@ -115,11 +115,13 @@ public class Node {
     public CoordinateResponse coordinateGet(String key) {
         List<RingEntry> preferenceList = this.getPreferenceList(key);
         int reads = 0;
+        int nodesReached = 0;
         byte[] oneResponse = {};
-        for (int i = 0; i < this.N; i++) {
+        for (int i = 0; i < preferenceList.size() && nodesReached < this.N; i++) {
             var entry = preferenceList.get(i);
             try {
                 if (entry.getActive()) {
+                    nodesReached++;
                     KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
                     ValueMessage response = stub.get(KeyMessage.newBuilder().setKey(key).build());
                     if (response.getSuccess()) {
@@ -140,10 +142,12 @@ public class Node {
     public CoordinateResponse coordinatePut(String key, byte[] val) {
         List<RingEntry> preferenceList = this.getPreferenceList(key);
         int writes = 0;
-        for (int i = 0; i < this.N; i++) {
+        int nodesReached = 0;
+        for (int i = 0; i < preferenceList.size() && nodesReached < this.N; i++) {
             var entry = preferenceList.get(i);
             try {
                 if (entry.getActive()) {
+                    nodesReached++;
                     KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
                     ValueMessage response = stub.put(KeyValMessage.newBuilder().setKey(key).setValue(ByteString.copyFrom(val)).build());
                     if (response.getSuccess()) {

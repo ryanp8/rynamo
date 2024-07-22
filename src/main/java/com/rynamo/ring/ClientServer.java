@@ -30,7 +30,6 @@ public class ClientServer {
         String key = ctx.pathParam("key");
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         for (var entry : preferenceList) {
-            System.out.println(entry.getActive());
             if (entry.getActive()) {
                 ValueMessage response = entry.getKeyValBlockingStub().forwardCoordinateGet(KeyMessage.newBuilder().setKey(key).build());
                 System.out.println("response: " + response.getSuccess());
