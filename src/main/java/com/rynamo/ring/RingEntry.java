@@ -69,13 +69,10 @@ public class RingEntry {
     public void setChan(ManagedChannel chan) {
         this.chan = chan;
     }
+
     public ExchangeMembershipBlockingStub getExchangeBlockingStub() {
         return this.exchangeBlockingStub;
     }
-
-//    public ExchangeMembershipStub getAsyncStub() {
-//        return this.asyncStub;
-//    }
 
     public void setExchangeBlockingStub(ExchangeMembershipBlockingStub blockingStub) {
         this.exchangeBlockingStub = blockingStub;

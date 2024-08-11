@@ -92,7 +92,6 @@ public class Node {
         this.exchangeRings(dst);
     }
 
-
     private void exchangeRings(RingEntry dst) {
         ClusterMessage cm = this.ring.createClusterMessage();
         try {
