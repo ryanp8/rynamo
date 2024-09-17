@@ -63,10 +63,11 @@ public class RingEntry {
 
     public void closeConn() {
         this.setActive(false);
-        this.chan.shutdown();
+        this.chan.shutdownNow();
     }
 
     public void setChan(ManagedChannel chan) {
+        this.chan.shutdown();
         this.chan = chan;
     }
 

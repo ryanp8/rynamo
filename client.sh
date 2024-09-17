@@ -1,3 +1,3 @@
 #!/bin/sh
 
-docker compose run --rm -it client
+docker compose run --name rynamo-client --rm -it client

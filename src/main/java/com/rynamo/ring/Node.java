@@ -3,6 +3,7 @@ package com.rynamo.ring;
 import com.google.protobuf.ByteString;
 import com.rynamo.RPCServer;
 import com.rynamo.coordinate.CoordinateResponse;
+import com.rynamo.coordinate.Coordinator;
 import com.rynamo.db.DBClient;
 import com.rynamo.grpc.keyval.*;
 import com.rynamo.grpc.membership.ClusterMessage;
@@ -23,6 +24,7 @@ public class Node {
     private final int clientPort;
     private final DBClient db;
     private final ClientServer clientServer;
+    private final Coordinator coordinator;
 
     public Node(int N, int R, int W, String host, int rpcPort, int clientPort) throws org.rocksdb.RocksDBException {
         this.N = N;
@@ -31,10 +33,11 @@ public class Node {
         this.host = host;
         this.rpcPort = rpcPort;
         this.clientPort = clientPort;
-        this.db = new DBClient(rpcPort);
+        this.db = new DBClient(host);
         this.server = new RPCServer(this.rpcPort, this);
         this.clientServer = new ClientServer(clientPort, this);
         this.ring = new ConsistentHashRing(5);
+        this.coordinator = new Coordinator(this);
     }
 
     public void startRPCServer() throws InterruptedException {
@@ -112,54 +115,10 @@ public class Node {
     }
 
     public CoordinateResponse coordinateGet(String key) {
-        List<RingEntry> preferenceList = this.getPreferenceList(key);
-        int reads = 0;
-        int nodesReached = 0;
-        byte[] oneResponse = {};
-        for (int i = 0; i < preferenceList.size() && nodesReached < this.N; i++) {
-            var entry = preferenceList.get(i);
-            try {
-                if (entry.getActive()) {
-                    nodesReached++;
-                    KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
-                    ValueMessage response = stub.get(KeyMessage.newBuilder().setKey(key).build());
-                    if (response.getSuccess()) {
-                        oneResponse = response.getValue().toByteArray();
-                        if (reads++ == this.R) {
-                            break;
-                        }
-                    }
-                }
-            } catch (StatusRuntimeException e) {
-                entry.closeConn();
-            }
-
-        }
-        return new CoordinateResponse(reads, 0, oneResponse);
+        return this.coordinator.coordinateGet(key);
     }
 
     public CoordinateResponse coordinatePut(String key, byte[] val) {
-        List<RingEntry> preferenceList = this.getPreferenceList(key);
-        int writes = 0;
-        int nodesReached = 0;
-        for (int i = 0; i < preferenceList.size() && nodesReached < this.N; i++) {
-            var entry = preferenceList.get(i);
-            try {
-                if (entry.getActive()) {
-                    nodesReached++;
-                    KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
-                    ValueMessage response = stub.put(KeyValMessage.newBuilder().setKey(key).setValue(ByteString.copyFrom(val)).build());
-                    if (response.getSuccess()) {
-                        if (writes++ == this.W) {
-                            break;
-                        }
-                    }
-                }
-            } catch (StatusRuntimeException e) {
-                entry.closeConn();
-            }
-
-        }
-        return new CoordinateResponse(0, writes, null);
+        return this.coordinator.coordinatePut(key, val);
     }
 }
