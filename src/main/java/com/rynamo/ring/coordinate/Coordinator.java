@@ -1,12 +1,13 @@
-package com.rynamo.coordinate;
+package com.rynamo.ring.coordinate;
 
 import com.google.protobuf.ByteString;
-import com.rynamo.grpc.keyval.KeyMessage;
-import com.rynamo.grpc.keyval.KeyValGrpc;
-import com.rynamo.grpc.keyval.KeyValMessage;
-import com.rynamo.grpc.keyval.ValueMessage;
+import com.rynamo.grpc.storage.KeyMessage;
+import com.rynamo.grpc.storage.StorageGrpc;
+import com.rynamo.grpc.storage.KeyValMessage;
+import com.rynamo.grpc.storage.ValueMessage;
 import com.rynamo.ring.Node;
-import com.rynamo.ring.RingEntry;
+import com.rynamo.ring.entry.ActiveEntry;
+import com.rynamo.ring.entry.RingEntry;
 import io.grpc.StatusRuntimeException;
 
 import java.util.*;
@@ -25,10 +26,9 @@ public class Coordinator {
         for (int i = 0; i < preferenceList.size() && nodesReached < this.node.N; i++) {
             var entry = preferenceList.get(i);
             try {
-                if (entry.getActive()) {
+                if (entry instanceof ActiveEntry active) {
                     nodesReached++;
-                    KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
-                    ValueMessage response = stub.get(KeyMessage.newBuilder().setKey(key).build());
+                    ValueMessage response = active.get(KeyMessage.newBuilder().setKey(key).build());
                     if (response.getSuccess()) {
                         oneResponse = response.getValue().toByteArray();
                         if (reads++ == this.node.R) {
@@ -37,7 +37,7 @@ public class Coordinator {
                     }
                 }
             } catch (StatusRuntimeException e) {
-                entry.closeConn();
+                this.node.getRing().kill(i, entry.getVersion() + 1);
             }
 
         }
@@ -51,10 +51,10 @@ public class Coordinator {
         for (int i = 0; i < preferenceList.size() && nodesReached < this.node.N; i++) {
             var entry = preferenceList.get(i);
             try {
-                if (entry.getActive()) {
+                if (entry instanceof ActiveEntry active) {
                     nodesReached++;
-                    KeyValGrpc.KeyValBlockingStub stub = entry.getKeyValBlockingStub();
-                    ValueMessage response = stub.put(KeyValMessage.newBuilder().setKey(key).setValue(ByteString.copyFrom(val)).build());
+                    ValueMessage response = active.put(KeyValMessage.newBuilder()
+                            .setKey(key).setValue(ByteString.copyFrom(val)).build());
                     if (response.getSuccess()) {
                         if (writes++ == this.node.W) {
                             break;
@@ -62,7 +62,7 @@ public class Coordinator {
                     }
                 }
             } catch (StatusRuntimeException e) {
-                entry.closeConn();
+                this.node.getRing().kill(i, entry.getVersion() + 1);
             }
 
         }

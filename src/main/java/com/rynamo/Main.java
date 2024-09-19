@@ -9,8 +9,7 @@ public class Main {
         int W = 2;
         try {
             Node node = new Node(N, R, W, args[0], Integer.parseInt(args[1]), Integer.parseInt(args[2]));
-            node.startRPCServer();
-            node.startMembershipGossip();
+            node.start();
         } catch (Exception e) {
             System.err.println(e.getMessage());
         }

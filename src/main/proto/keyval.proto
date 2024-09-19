@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package keyval;
+package storage;
 option java_multiple_files =  true;
-option java_package = "com.rynamo.grpc.keyval";
-option java_outer_classname = "KeyValProto";
+option java_package = "com.rynamo.grpc.storage";
+option java_outer_classname = "StorageProto";
 
 message KeyMessage {
     string key = 1;
@@ -20,9 +20,9 @@ message KeyValMessage {
     bytes value = 2;
 }
 
-service KeyVal {
+service Storage {
     rpc Get(KeyMessage) returns (ValueMessage);
     rpc Put(KeyValMessage) returns (ValueMessage);
-    rpc ForwardCoordinateGet(KeyMessage) returns (ValueMessage);
-    rpc ForwardCoordinatePut(KeyValMessage) returns (ValueMessage);
+    rpc CoordinateGet(KeyMessage) returns (ValueMessage);
+    rpc CoordinatePut(KeyValMessage) returns (ValueMessage);
 }

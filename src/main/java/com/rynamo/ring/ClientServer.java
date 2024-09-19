@@ -1,9 +1,11 @@
 package com.rynamo.ring;
 
 import com.google.protobuf.ByteString;
-import com.rynamo.grpc.keyval.KeyMessage;
-import com.rynamo.grpc.keyval.KeyValMessage;
-import com.rynamo.grpc.keyval.ValueMessage;
+import com.rynamo.grpc.storage.KeyMessage;
+import com.rynamo.grpc.storage.KeyValMessage;
+import com.rynamo.grpc.storage.ValueMessage;
+import com.rynamo.ring.entry.ActiveEntry;
+import com.rynamo.ring.entry.RingEntry;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 
@@ -12,13 +14,17 @@ import java.util.List;
 
 public class ClientServer {
     final private Node node;
-    public ClientServer(int port, Node node) {
+    final private Javalin server;
+    public ClientServer(Node node) {
         this.node = node;
-        Javalin.create()
+        this.server = Javalin.create()
                 .get("/health", this::handleHealth)
                 .get("/{key}", this::handleGet)
-                .put("/{key}/{val}", this::handlePut)
-                .start(port);
+                .put("/{key}/{val}", this::handlePut);
+    }
+
+    public void start(int port) {
+        this.server.start(port);
     }
 
     private void handleHealth(Context ctx) {
@@ -30,8 +36,8 @@ public class ClientServer {
         String key = ctx.pathParam("key");
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         for (var entry : preferenceList) {
-            if (entry.getActive()) {
-                ValueMessage response = entry.getKeyValBlockingStub().forwardCoordinateGet(KeyMessage.newBuilder().setKey(key).build());
+            if (entry instanceof ActiveEntry activeEntry) {
+                ValueMessage response = activeEntry.coordinateGet(KeyMessage.newBuilder().setKey(key).build());
                 System.out.println("response: " + response.getSuccess());
                 if (response.getSuccess()) {
                     ctx.status(200);
@@ -48,10 +54,10 @@ public class ClientServer {
         String val = ctx.pathParam("val");
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         for (var entry : preferenceList) {
-            if (entry.getActive()) {
+            if (entry instanceof ActiveEntry activeEntry) {
                 KeyValMessage request = KeyValMessage.newBuilder()
                         .setKey(key).setValue(ByteString.copyFrom(val, StandardCharsets.UTF_8)).build();
-                ValueMessage response = entry.getKeyValBlockingStub().forwardCoordinatePut(request);
+                ValueMessage response = activeEntry.coordinatePut(request);
                 if (response.getSuccess()) {
                     ctx.status(200);
                     ctx.result(response.getValue().toByteArray());

@@ -9,7 +9,7 @@ option java_outer_classname = "MembershipProto";
 message RingEntryMessage {
     optional string host = 1;
     optional int32 port = 2;
-    int64 timestamp = 3;
+    int64 version = 3;
     bool active = 4;
 }
 

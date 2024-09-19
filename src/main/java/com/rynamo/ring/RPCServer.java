@@ -1,12 +1,10 @@
-package com.rynamo;
+package com.rynamo.ring;
 
 
 import com.google.protobuf.ByteString;
-import com.rynamo.coordinate.CoordinateResponse;
-import com.rynamo.grpc.keyval.*;
+import com.rynamo.ring.coordinate.CoordinateResponse;
+import com.rynamo.grpc.storage.*;
 import com.rynamo.grpc.membership.*;
-import com.rynamo.ring.ConsistentHashRing;
-import com.rynamo.ring.Node;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.rocksdb.RocksDBException;
@@ -23,7 +21,7 @@ public class RPCServer implements Runnable {
         this.node = node;
         this.serverStatus = false;
         ServerBuilder<?> serverBuilder = Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create());
-        this.server = serverBuilder.addService(new MembershipService()).addService(new KeyValService()).build();
+        this.server = serverBuilder.addService(new MembershipService()).addService(new StorageService()).build();
     }
 
     @Override
@@ -38,7 +36,7 @@ public class RPCServer implements Runnable {
     public void start() throws java.io.IOException, InterruptedException {
         this.server.start();
         this.setServerStatus(true);
-        System.out.println("Started server in separate thread");
+        System.out.println("Started RPC server in separate thread");
 
         this.server.awaitTermination();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -72,19 +70,19 @@ public class RPCServer implements Runnable {
         @Override
         public void exchange(ClusterMessage request, StreamObserver<ClusterMessage> responseObserver) {
             ConsistentHashRing receiverRing = RPCServer.this.node.getRing();
-            responseObserver.onNext(receiverRing.createClusterMessage());
-            receiverRing.mergeRings(request);
+            responseObserver.onNext(receiverRing.getClusterMessage());
+            receiverRing.merge(ConsistentHashRing.clusterMessageToRing(request));
             responseObserver.onCompleted();
         }
 
         @Override
         public void getMembership(ClusterMessage request, StreamObserver<ClusterMessage> responseObserver) {
-            responseObserver.onNext(RPCServer.this.node.getRing().createClusterMessage());
+            responseObserver.onNext(RPCServer.this.node.getRing().getClusterMessage());
             responseObserver.onCompleted();
         }
     }
 
-    private class KeyValService extends KeyValGrpc.KeyValImplBase {
+    private class StorageService extends StorageGrpc.StorageImplBase {
         @Override
         public void get(KeyMessage request, StreamObserver<ValueMessage> responseObserver) {
             ValueMessage.Builder builder = ValueMessage.newBuilder();
@@ -112,7 +110,7 @@ public class RPCServer implements Runnable {
         }
 
         @Override
-        public void forwardCoordinateGet(KeyMessage request, StreamObserver<ValueMessage> responseObserver) {
+        public void coordinateGet(KeyMessage request, StreamObserver<ValueMessage> responseObserver) {
             System.out.println("running forwardCoordinateGet");
             CoordinateResponse response = RPCServer.this.node.coordinateGet(request.getKey());
             boolean success = response.R >= RPCServer.this.node.R;
@@ -122,7 +120,7 @@ public class RPCServer implements Runnable {
         }
 
         @Override
-        public void forwardCoordinatePut(KeyValMessage request, StreamObserver<ValueMessage> responseObserver) {
+        public void coordinatePut(KeyValMessage request, StreamObserver<ValueMessage> responseObserver) {
             CoordinateResponse response = RPCServer.this.node.coordinatePut(request.getKey(), request.getValue().toByteArray());
             boolean success = response.W >= RPCServer.this.node.W;
             System.out.println(success + " W: " + response.W + ", R: " + response.R);

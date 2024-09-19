@@ -1,12 +1,10 @@
 package com.rynamo.ring;
 
-import com.google.protobuf.ByteString;
-import com.rynamo.RPCServer;
-import com.rynamo.coordinate.CoordinateResponse;
-import com.rynamo.coordinate.Coordinator;
+import com.rynamo.ring.coordinate.CoordinateResponse;
+import com.rynamo.ring.coordinate.Coordinator;
 import com.rynamo.db.DBClient;
-import com.rynamo.grpc.keyval.*;
 import com.rynamo.grpc.membership.ClusterMessage;
+import com.rynamo.ring.entry.*;
 import io.grpc.*;
 import org.rocksdb.RocksDBException;
 
@@ -18,7 +16,7 @@ public class Node {
     public final int N;
     public final int R;
     public final int W;
-    private ConsistentHashRing ring;
+    private final ConsistentHashRing ring;
     private final String host;
     private final int rpcPort;
     private final int clientPort;
@@ -35,9 +33,16 @@ public class Node {
         this.clientPort = clientPort;
         this.db = new DBClient(host);
         this.server = new RPCServer(this.rpcPort, this);
-        this.clientServer = new ClientServer(clientPort, this);
+        this.clientServer = new ClientServer(this);
         this.ring = new ConsistentHashRing(5);
         this.coordinator = new Coordinator(this);
+    }
+
+    public void start() throws InterruptedException {
+        this.startRPCServer();
+        this.startMembershipGossip();
+        this.clientServer.start(this.clientPort);
+        this.ring.init(host, this.rpcPort);
     }
 
     public void startRPCServer() throws InterruptedException {
@@ -47,7 +52,6 @@ public class Node {
         while (!this.server.getServerStatus()) {
             TimeUnit.SECONDS.sleep(1);
         }
-        this.ring.init(host, this.rpcPort);
     }
 
     public void startMembershipGossip() {
@@ -55,7 +59,7 @@ public class Node {
             @Override
             public void run() {
                 Node.this.exchangeRings();
-                System.out.println(Node.this.getRing());
+                System.out.println(Node.this.ring);
             }
         };
         Timer timer = new Timer();
@@ -66,43 +70,23 @@ public class Node {
         return this.ring;
     }
 
-    synchronized public List<RingEntry> getPreferenceList(String key) {
-        int start = this.ring.getIdx(key);
-        List<RingEntry> preferenceList = new ArrayList<>();
-        int iters = 0;
-        while (iters < this.ring.getSize()) {
-            preferenceList.add(this.ring.getEntry((start + iters) % this.ring.getSize()));
-            iters++;
-        }
-        return preferenceList;
+    public List<RingEntry> getPreferenceList(String key) {
+        return this.ring.getPreferenceList(key);
     }
 
     private void exchangeRings() {
-        int ringSize = this.ring.getSize();
-        Random rand = new Random();
-        int idx = (int) (rand.nextLong() & Integer.MAX_VALUE) % ringSize;
-        RingEntry dst = this.ring.getEntry(idx);
-
-        int iters = 0;
-        while (!dst.getActive() && iters < ringSize) {
-            dst = this.ring.getEntry((idx++) % ringSize);
-            iters++;
-        }
-        if (iters >= ringSize) {
-            return;
-        }
-
-        this.exchangeRings(dst);
+        Optional<ActiveEntry> other = this.ring.getRandomEntry();
+        other.ifPresent(this::exchangeRings);
     }
 
-    private void exchangeRings(RingEntry dst) {
-        ClusterMessage cm = this.ring.createClusterMessage();
+    private void exchangeRings(ActiveEntry dst) {
+        ClusterMessage cm = this.ring.getClusterMessage();
         try {
-            ClusterMessage dstEntries = dst.getExchangeBlockingStub().exchange(cm);
-            this.ring.mergeRings(dstEntries);
+            List<RingEntry> otherRing = dst.exchange(cm);
+            this.ring.merge(otherRing);
         } catch (StatusRuntimeException e) {
             System.err.printf("Tried to exchange with %s but dst was unavailable\n", dst);
-            dst.closeConn();
+            this.ring.kill(this.ring.getNodeIndex(dst), dst.getVersion() + 1);
         }
     }
 

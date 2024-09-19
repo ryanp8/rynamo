@@ -1,4 +1,4 @@
-package com.rynamo.coordinate;
+package com.rynamo.ring.coordinate;
 
 public class CoordinateResponse {
     public final int R;
