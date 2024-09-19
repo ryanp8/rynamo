@@ -7,9 +7,9 @@ import org.rocksdb.RocksDBException;
 public class DBClient {
 
     private final RocksDB db;
-    public DBClient(String name) throws org.rocksdb.RocksDBException {
+    public DBClient(String name, int port) throws org.rocksdb.RocksDBException {
         Options options = new Options().setCreateIfMissing(true);
-        this.db = RocksDB.open(options,String.format("./tmp/%s", name));
+        this.db = RocksDB.open(options,String.format("./tmp/%s:%d", name, port));
     }
 
     public byte[] get(String key) throws RocksDBException {

@@ -23,11 +23,19 @@ public class ConsistentHashRing {
                 .collect(Collectors.toList());
     }
 
+    public ConsistentHashRing(List<RingEntry> ring) {
+        this.size = ring.size();
+        this.ring = ring;
+    }
+
     public void init(String host, int rpcPort) {
         ActiveEntry self = new ActiveEntry(host, rpcPort, 1);
-        ActiveEntry seed = new ActiveEntry("rynamo-seed", 8000, 1);
-        this.insertEntry(self);
-        seed.exchange(this.getClusterMessage());
+        ActiveEntry seed = new ActiveEntry("localhost", 8000, 1);
+        long currentVersion = seed.getRemoteEntryVersion(self);
+        self.setVersion(currentVersion + 1);
+        this.ring.set(this.getNodeIndex(self.getId()), self);
+        this.ring.set(this.getNodeIndex(seed.getId()), seed);
+        this.merge(seed.exchange(this.getClusterMessage()));
     }
 
     public static List<RingEntry> clusterMessageToRing(ClusterMessage recv) {
@@ -61,11 +69,11 @@ public class ConsistentHashRing {
         return -1;
     }
 
-    synchronized public int insertEntry(RingEntry entry) {
-        int i = getNodeIndex(entry);
-        this.ring.set(i, entry);
-        return i;
+    synchronized public RingEntry getNode(String id) {
+        int i = this.getNodeIndex(id);
+        return this.ring.get(i);
     }
+
 
     synchronized public List<RingEntry> getPreferenceList(String key) {
         int start = this.getNodeIndex(key);
@@ -114,22 +122,22 @@ public class ConsistentHashRing {
         return builder.build();
     }
 
-    synchronized void merge(List<RingEntry> other) {
-        for (int i = 0; i < other.size(); i++) {
-            RingEntry localEntry = this.ring.get(i);
-            RingEntry otherEntry = other.get(i);
-            if (localEntry.getVersion() < otherEntry.getVersion()) {
+    synchronized void merge(List<RingEntry> otherRing) {
+        for (int i = 0; i < otherRing.size(); i++) {
+            RingEntry local = this.ring.get(i);
+            RingEntry other = otherRing.get(i);
+            if (local.getVersion() < other.getVersion()) {
                 // local is older than other
-                if (localEntry instanceof ActiveEntry && otherEntry instanceof InactiveEntry) {
-                    this.kill(i, otherEntry.getVersion());
-                } else if (localEntry instanceof InactiveEntry && otherEntry instanceof ActiveEntry active) {
+                if (local instanceof ActiveEntry && other instanceof InactiveEntry) {
+                    this.kill(i, other.getVersion());
+                } else if (local instanceof InactiveEntry && other instanceof ActiveEntry active) {
                     this.ring.set(i, new ActiveEntry(active.getHost(), active.getPort(), active.getVersion()));
                 } else {
-                    localEntry.setVersion(otherEntry.getVersion());
+                    local.setVersion(other.getVersion());
                 }
-            } else if (localEntry.getVersion() == otherEntry.getVersion()) {
-                if (localEntry instanceof ActiveEntry) {
-                    this.kill(i, otherEntry.getVersion());
+            } else if (local.getVersion() == other.getVersion()) {
+                if (local instanceof ActiveEntry && other instanceof InactiveEntry) {
+                    this.kill(i, other.getVersion());
                 }
             }
         }
@@ -152,7 +160,7 @@ public class ConsistentHashRing {
     public String toString() {
         StringBuilder str = new StringBuilder();
         for (RingEntry entry : this.ring) {
-            str.append(entry.toString());
+            str.append(entry.toString()).append(", ");
         }
         return str.toString();
     }

@@ -13,6 +13,10 @@ message RingEntryMessage {
     bool active = 4;
 }
 
+message VersionMessage {
+    int64 version = 1;
+}
+
 message ClusterMessage {
     repeated RingEntryMessage node = 1;
 }
@@ -20,5 +24,6 @@ message ClusterMessage {
 service ExchangeMembership {
     rpc Exchange(ClusterMessage) returns (ClusterMessage);
     rpc GetMembership(ClusterMessage) returns (ClusterMessage);
+    rpc GetVersion(RingEntryMessage) returns (VersionMessage);
 }
 

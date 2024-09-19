@@ -80,6 +80,16 @@ public class RPCServer implements Runnable {
             responseObserver.onNext(RPCServer.this.node.getRing().getClusterMessage());
             responseObserver.onCompleted();
         }
+
+        @Override
+        public void getVersion(RingEntryMessage request, StreamObserver<VersionMessage> responseObserver) {
+            String id = String.format("%s:%d", request.getHost(), request.getPort());
+            VersionMessage response = VersionMessage.newBuilder()
+                    .setVersion(RPCServer.this.node.getRing().getNode(id).getVersion())
+                    .build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
     }
 
     private class StorageService extends StorageGrpc.StorageImplBase {

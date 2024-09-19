@@ -31,10 +31,10 @@ public class Node {
         this.host = host;
         this.rpcPort = rpcPort;
         this.clientPort = clientPort;
-        this.db = new DBClient(host);
+        this.db = new DBClient(host, clientPort);
         this.server = new RPCServer(this.rpcPort, this);
         this.clientServer = new ClientServer(this);
-        this.ring = new ConsistentHashRing(5);
+        this.ring = new ConsistentHashRing(10);
         this.coordinator = new Coordinator(this);
     }
 

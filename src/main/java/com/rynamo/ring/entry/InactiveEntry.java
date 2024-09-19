@@ -7,6 +7,6 @@ public class InactiveEntry extends RingEntry {
 
     @Override
     public String toString() {
-        return "no entry";
+        return String.format("(null, %d)", this.version);
     }
 }

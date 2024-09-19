@@ -3,6 +3,7 @@ package com.rynamo.ring.entry;
 import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
 import com.rynamo.grpc.membership.RingEntryMessage;
+import com.rynamo.grpc.membership.VersionMessage;
 import com.rynamo.grpc.storage.KeyMessage;
 import com.rynamo.grpc.storage.KeyValMessage;
 import com.rynamo.grpc.storage.StorageGrpc;
@@ -43,6 +44,10 @@ public class ActiveEntry extends RingEntry {
         return this.port;
     }
 
+    public String getId() {
+        return this.id;
+    }
+
     public void kill() {
         this.chan.shutdownNow();
     }
@@ -66,6 +71,17 @@ public class ActiveEntry extends RingEntry {
 
     public ValueMessage get(KeyMessage request) {
         return this.storageStub.get(request);
+    }
+
+    public long getRemoteEntryVersion(ActiveEntry entry) {
+        RingEntryMessage request = RingEntryMessage.newBuilder()
+                .setHost(entry.getHost())
+                .setPort(entry.getPort())
+                .setVersion(entry.getVersion())
+                .setActive(true)
+                .build();
+        VersionMessage response = this.exchangeStub.getVersion(request);
+        return response.getVersion();
     }
 
     @Override
