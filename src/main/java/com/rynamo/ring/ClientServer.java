@@ -1,15 +1,16 @@
 package com.rynamo.ring;
 
+import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
-import com.rynamo.grpc.storage.KeyMessage;
-import com.rynamo.grpc.storage.KeyValMessage;
-import com.rynamo.grpc.storage.ValueMessage;
+import com.rynamo.grpc.storage.GetResponse;
+import com.rynamo.grpc.storage.PutResponse;
 import com.rynamo.ring.entry.ActiveEntry;
 import com.rynamo.ring.entry.RingEntry;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ClientServer {
@@ -37,13 +38,18 @@ public class ClientServer {
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         for (var entry : preferenceList) {
             if (entry instanceof ActiveEntry activeEntry) {
-                ValueMessage response = activeEntry.coordinateGet(key);
-                System.out.println("response: " + response.getSuccess());
-                if (response.getSuccess()) {
-                    ctx.status(200);
-                    ctx.result(response.getValue().toByteArray());
-                    return;
-                }
+                try {
+                    GetResponse response = activeEntry.coordinateGet(key);
+                    if (!response.getValueList().isEmpty()) {
+                        ctx.status(200);
+                        StringBuilder body = new StringBuilder();
+                        for (ByteString value : response.getValueList()) {
+                            body.append(new String(value.toByteArray())).append(", ");
+                        }
+                        ctx.result(body.toString().getBytes(StandardCharsets.UTF_8));
+                        return;
+                    }
+                } catch (Exception e) {}
             }
         }
         ctx.status(400);
@@ -55,12 +61,12 @@ public class ClientServer {
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         for (var entry : preferenceList) {
             if (entry instanceof ActiveEntry activeEntry) {
-                ValueMessage response = activeEntry.coordinatePut(key, val.getBytes(StandardCharsets.UTF_8));
-                if (response.getSuccess()) {
+                try {
+                    PutResponse response = activeEntry.coordinatePut(key, val.getBytes(StandardCharsets.UTF_8));
                     ctx.status(200);
-                    ctx.result(response.getValue().toByteArray());
+                    ctx.result(Long.toString(response.getVersion()).getBytes(StandardCharsets.UTF_8));
                     return;
-                }
+                } catch (Exception e) {}
             }
         }
         ctx.status(400);

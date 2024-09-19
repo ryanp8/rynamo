@@ -1,8 +1,9 @@
 package com.rynamo.ring;
 
+import com.rynamo.db.Row;
 import com.rynamo.ring.coordinate.CoordinateResponse;
 import com.rynamo.ring.coordinate.Coordinator;
-import com.rynamo.db.DBClient;
+import com.rynamo.db.StorageLayer;
 import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.ring.entry.*;
 import io.grpc.*;
@@ -19,8 +20,9 @@ public class Node {
     private final ConsistentHashRing ring;
     private final String host;
     private final int rpcPort;
+    private final String id;
     private final int clientPort;
-    private final DBClient db;
+    private final StorageLayer db;
     private final ClientServer clientServer;
     private final Coordinator coordinator;
 
@@ -30,8 +32,9 @@ public class Node {
         this.W = W;
         this.host = host;
         this.rpcPort = rpcPort;
+        this.id = String.format("%s:%d", host, rpcPort);
         this.clientPort = clientPort;
-        this.db = new DBClient(host, clientPort);
+        this.db = new StorageLayer(this.id);
         this.server = new RPCServer(this.rpcPort, this);
         this.clientServer = new ClientServer(this);
         this.ring = new ConsistentHashRing(10, seedNode);
@@ -66,6 +69,14 @@ public class Node {
         timer.scheduleAtFixedRate(exchangeTimerTask, 0, 3000);
     }
 
+    public StorageLayer db() {
+        return this.db;
+    }
+
+    public String getId() {
+        return this.id;
+    }
+
     public ConsistentHashRing getRing() {
         return this.ring;
     }
@@ -90,19 +101,12 @@ public class Node {
         }
     }
 
-    public byte[] getDB(String key) throws RocksDBException {
-        return this.db.get(key);
-    }
-
-    public void putDB(String key, byte[] val) throws RocksDBException {
-        this.db.put(key, val);
-    }
-
     public CoordinateResponse coordinateGet(String key) {
         return this.coordinator.coordinateGet(key);
     }
 
-    public CoordinateResponse coordinatePut(String key, byte[] val) {
-        return this.coordinator.coordinatePut(key, val);
+
+    public CoordinateResponse coordinatePut(String key, long version, byte[] val) {
+        return this.coordinator.coordinatePut(key, version, val);
     }
 }

@@ -5,24 +5,34 @@ option java_multiple_files =  true;
 option java_package = "com.rynamo.grpc.storage";
 option java_outer_classname = "StorageProto";
 
-message KeyMessage {
-    string key = 1;
-    optional string intendedRecipient = 2;
-}
-
-message ValueMessage {
+message Record {
     bytes value = 1;
-    bool success = 2;
+    int64 version = 2;
 }
 
-message KeyValMessage {
-    optional string key = 1;
+message GetRequest {
+    string key = 1;
+    int64 version = 2;
+}
+
+message GetResponse {
+    repeated bytes value = 1;
+}
+
+message PutRequest {
+    string key = 1;
     bytes value = 2;
+    int64 version = 3;
+    optional string intended_node = 4;
+}
+
+message PutResponse {
+    int64 version = 1;
 }
 
 service Storage {
-    rpc Get(KeyMessage) returns (ValueMessage);
-    rpc Put(KeyValMessage) returns (ValueMessage);
-    rpc CoordinateGet(KeyMessage) returns (ValueMessage);
-    rpc CoordinatePut(KeyValMessage) returns (ValueMessage);
+    rpc Get(GetRequest) returns (GetResponse);
+    rpc Put(PutRequest) returns (PutResponse);
+    rpc CoordinateGet(GetRequest) returns (GetResponse);
+    rpc CoordinatePut(PutRequest) returns (PutResponse);
 }

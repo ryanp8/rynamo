@@ -1,18 +1,12 @@
 package com.rynamo.ring.coordinate;
 
-public class CoordinateResponse {
-    public final int R;
-    public final int W;
-    public final byte[] result;
+import com.rynamo.db.Row;
 
-    public CoordinateResponse(int R, int W, byte[] result) {
-        this.R = R;
-        this.W = W;
-        this.result = result;
-    }
+import java.util.List;
 
+public record CoordinateResponse (int R, int W, List<byte[]> values) {
     @Override
     public String toString() {
-        return this.R + " " + this.W + " " + this.result;
+        return this.R + " " + this.W + " " + values;
     }
 }

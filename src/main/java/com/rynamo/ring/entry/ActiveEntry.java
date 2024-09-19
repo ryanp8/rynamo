@@ -5,10 +5,7 @@ import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
 import com.rynamo.grpc.membership.RingEntryMessage;
 import com.rynamo.grpc.membership.VersionMessage;
-import com.rynamo.grpc.storage.KeyMessage;
-import com.rynamo.grpc.storage.KeyValMessage;
-import com.rynamo.grpc.storage.StorageGrpc;
-import com.rynamo.grpc.storage.ValueMessage;
+import com.rynamo.grpc.storage.*;
 import com.rynamo.ring.ConsistentHashRing;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -68,25 +65,28 @@ public class ActiveEntry extends RingEntry {
         return ConsistentHashRing.clusterMessageToRing(recv);
     }
 
-    public ValueMessage coordinatePut(String key, byte[] value) {
-        KeyValMessage request = KeyValMessage.newBuilder()
+    public PutResponse coordinatePut(String key, byte[] value) {
+        PutRequest request = PutRequest.newBuilder()
                 .setKey(key).setValue(ByteString.copyFrom(value)).build();
         return this.storageStub.coordinatePut(request);
     }
 
-    public ValueMessage coordinateGet(String key) {
-        KeyMessage request = KeyMessage.newBuilder().setKey(key).build();
+    public GetResponse coordinateGet(String key) {
+        GetRequest request = GetRequest.newBuilder().setKey(key).build();
         return this.storageStub.coordinateGet(request);
     }
 
-    public ValueMessage put(String key, byte[] value) {
-        KeyValMessage request = KeyValMessage.newBuilder()
-                .setKey(key).setValue(ByteString.copyFrom(value)).build();
+    public PutResponse put(String key, long version, byte[] value) {
+        PutRequest request = PutRequest.newBuilder()
+                .setKey(key)
+                .setValue(ByteString.copyFrom(value))
+                .setVersion(version)
+                .build();
         return this.storageStub.put(request);
     }
 
-    public ValueMessage get(String key) {
-        KeyMessage request = KeyMessage.newBuilder().setKey(key).build();
+    public GetResponse get(String key) {
+        GetRequest request = GetRequest.newBuilder().setKey(key).build();
         return this.storageStub.get(request);
     }
 

@@ -2,9 +2,10 @@ package com.rynamo.ring;
 
 
 import com.google.protobuf.ByteString;
-import com.rynamo.ring.coordinate.CoordinateResponse;
+import com.rynamo.db.Row;
 import com.rynamo.grpc.storage.*;
 import com.rynamo.grpc.membership.*;
+import com.rynamo.ring.coordinate.CoordinateResponse;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.rocksdb.RocksDBException;
@@ -94,47 +95,62 @@ public class RPCServer implements Runnable {
 
     private class StorageService extends StorageGrpc.StorageImplBase {
         @Override
-        public void get(KeyMessage request, StreamObserver<ValueMessage> responseObserver) {
-            ValueMessage.Builder builder = ValueMessage.newBuilder();
+        public void get(GetRequest request, StreamObserver<GetResponse> responseObserver) {
+            GetResponse.Builder responseBuilder = GetResponse.newBuilder();
             try {
-                byte[] dbResponse = RPCServer.this.node.getDB(request.getKey());
-                boolean isEmpty = dbResponse == null;
-                ByteString responseBytes = isEmpty ? ByteString.EMPTY : ByteString.copyFrom(dbResponse);
-                responseObserver.onNext(builder.setSuccess(!isEmpty).setValue(responseBytes).build());
-            } catch (RocksDBException e) {
-                responseObserver.onNext(builder.setSuccess(false).build());
+                Row results = RPCServer.this.node.db().get(request.getKey());
+
+                for (byte[] result : results.values()) {
+                    responseBuilder.addValue(ByteString.copyFrom(result));
+                }
+            } catch (RocksDBException ignored) {
             }
+            responseObserver.onNext(responseBuilder.build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void put(KeyValMessage request, StreamObserver<ValueMessage> responseObserver) {
-            ValueMessage.Builder builder = ValueMessage.newBuilder();
+        public void put(PutRequest request, StreamObserver<PutResponse> responseObserver) {
+            PutResponse.Builder responseBuilder = PutResponse.newBuilder();
             try {
-                RPCServer.this.node.putDB(request.getKey(), request.getValue().toByteArray());
-                responseObserver.onNext(builder.setSuccess(true).build());
-            } catch (RocksDBException e) {
-                responseObserver.onNext(builder.setSuccess(false).build());
+                long version = RPCServer.this.node.db().put(request.getKey(),
+                        request.getVersion(),
+                        request.getValue().toByteArray());
+                responseBuilder.setVersion(version);
+            } catch (RocksDBException ignored){}
+            responseObserver.onNext(responseBuilder.build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void coordinateGet(GetRequest request, StreamObserver<GetResponse> responseObserver) {
+            int R = RPCServer.this.node.R;
+            System.out.println("running coordinate get rpc");
+            CoordinateResponse result = RPCServer.this.node.coordinateGet(request.getKey());
+            GetResponse.Builder responseBuilder = GetResponse.newBuilder();
+            System.out.println(result.R());
+            if (result.R() >= R) {
+                for (byte[] value : result.values()) {
+                    responseBuilder.addValue(ByteString.copyFrom(value));
+                }
             }
+            responseObserver.onNext(responseBuilder.build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void coordinateGet(KeyMessage request, StreamObserver<ValueMessage> responseObserver) {
-            System.out.println("running forwardCoordinateGet");
-            CoordinateResponse response = RPCServer.this.node.coordinateGet(request.getKey());
-            boolean success = response.R >= RPCServer.this.node.R;
-            System.out.println(success + " W: " + response.W + ", R: " + response.R);
-            responseObserver.onNext(ValueMessage.newBuilder().setSuccess(success).setValue(ByteString.copyFrom(response.result)).build());
-            responseObserver.onCompleted();
-        }
-
-        @Override
-        public void coordinatePut(KeyValMessage request, StreamObserver<ValueMessage> responseObserver) {
-            CoordinateResponse response = RPCServer.this.node.coordinatePut(request.getKey(), request.getValue().toByteArray());
-            boolean success = response.W >= RPCServer.this.node.W;
-            System.out.println(success + " W: " + response.W + ", R: " + response.R);
-            responseObserver.onNext(ValueMessage.newBuilder().setSuccess(success).build());
+        public void coordinatePut(PutRequest request, StreamObserver<PutResponse> responseObserver) {
+            int W = RPCServer.this.node.W;
+            long currentVersion = RPCServer.this.node.db().getVersion(request.getKey());
+            System.out.println(currentVersion);
+            CoordinateResponse result = RPCServer.this.node.coordinatePut(request.getKey(),
+                    currentVersion,
+                    request.getValue().toByteArray());
+            PutResponse.Builder responseBuilder = PutResponse.newBuilder();
+            if (result.W() >= W) {
+                responseBuilder.setVersion(currentVersion + 1);
+            }
+            responseObserver.onNext(responseBuilder.build());
             responseObserver.onCompleted();
         }
     }
