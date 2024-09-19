@@ -37,7 +37,7 @@ public class ClientServer {
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         for (var entry : preferenceList) {
             if (entry instanceof ActiveEntry activeEntry) {
-                ValueMessage response = activeEntry.coordinateGet(KeyMessage.newBuilder().setKey(key).build());
+                ValueMessage response = activeEntry.coordinateGet(key);
                 System.out.println("response: " + response.getSuccess());
                 if (response.getSuccess()) {
                     ctx.status(200);
@@ -55,9 +55,7 @@ public class ClientServer {
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         for (var entry : preferenceList) {
             if (entry instanceof ActiveEntry activeEntry) {
-                KeyValMessage request = KeyValMessage.newBuilder()
-                        .setKey(key).setValue(ByteString.copyFrom(val, StandardCharsets.UTF_8)).build();
-                ValueMessage response = activeEntry.coordinatePut(request);
+                ValueMessage response = activeEntry.coordinatePut(key, val.getBytes(StandardCharsets.UTF_8));
                 if (response.getSuccess()) {
                     ctx.status(200);
                     ctx.result(response.getValue().toByteArray());

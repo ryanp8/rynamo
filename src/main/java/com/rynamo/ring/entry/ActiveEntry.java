@@ -1,5 +1,6 @@
 package com.rynamo.ring.entry;
 
+import com.google.protobuf.ByteString;
 import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.grpc.membership.ExchangeMembershipGrpc;
 import com.rynamo.grpc.membership.RingEntryMessage;
@@ -12,6 +13,7 @@ import com.rynamo.ring.ConsistentHashRing;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class ActiveEntry extends RingEntry {
@@ -57,19 +59,25 @@ public class ActiveEntry extends RingEntry {
         return ConsistentHashRing.clusterMessageToRing(recv);
     }
 
-    public ValueMessage coordinatePut(KeyValMessage request) {
+    public ValueMessage coordinatePut(String key, byte[] value) {
+        KeyValMessage request = KeyValMessage.newBuilder()
+                .setKey(key).setValue(ByteString.copyFrom(value)).build();
         return this.storageStub.coordinatePut(request);
     }
 
-    public ValueMessage coordinateGet(KeyMessage request) {
+    public ValueMessage coordinateGet(String key) {
+        KeyMessage request = KeyMessage.newBuilder().setKey(key).build();
         return this.storageStub.coordinateGet(request);
     }
 
-    public ValueMessage put(KeyValMessage request) {
+    public ValueMessage put(String key, byte[] value) {
+        KeyValMessage request = KeyValMessage.newBuilder()
+                .setKey(key).setValue(ByteString.copyFrom(value)).build();
         return this.storageStub.put(request);
     }
 
-    public ValueMessage get(KeyMessage request) {
+    public ValueMessage get(String key) {
+        KeyMessage request = KeyMessage.newBuilder().setKey(key).build();
         return this.storageStub.get(request);
     }
 

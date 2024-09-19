@@ -28,7 +28,7 @@ public class Coordinator {
             try {
                 if (entry instanceof ActiveEntry active) {
                     nodesReached++;
-                    ValueMessage response = active.get(KeyMessage.newBuilder().setKey(key).build());
+                    ValueMessage response = active.get(key);
                     if (response.getSuccess()) {
                         oneResponse = response.getValue().toByteArray();
                         if (reads++ == this.node.R) {
@@ -53,8 +53,7 @@ public class Coordinator {
             try {
                 if (entry instanceof ActiveEntry active) {
                     nodesReached++;
-                    ValueMessage response = active.put(KeyValMessage.newBuilder()
-                            .setKey(key).setValue(ByteString.copyFrom(val)).build());
+                    ValueMessage response = active.put(key, val);
                     if (response.getSuccess()) {
                         if (writes++ == this.node.W) {
                             break;
