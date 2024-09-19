@@ -24,7 +24,7 @@ public class Node {
     private final ClientServer clientServer;
     private final Coordinator coordinator;
 
-    public Node(int N, int R, int W, String host, int rpcPort, int clientPort) throws org.rocksdb.RocksDBException {
+    public Node(int N, int R, int W, String host, int rpcPort, int clientPort, String seedNode) throws org.rocksdb.RocksDBException {
         this.N = N;
         this.R = R;
         this.W = W;
@@ -34,7 +34,7 @@ public class Node {
         this.db = new DBClient(host, clientPort);
         this.server = new RPCServer(this.rpcPort, this);
         this.clientServer = new ClientServer(this);
-        this.ring = new ConsistentHashRing(10);
+        this.ring = new ConsistentHashRing(10, seedNode);
         this.coordinator = new Coordinator(this);
     }
 

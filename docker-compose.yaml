@@ -22,7 +22,7 @@ services:
       - cluster
     environment:
       NAME: ${NAME}
-    command: sh -c 'mvn exec:java -Dexec.args="$$NAME 8000 3000"'
+    command: sh -c 'mvn exec:java -Dexec.args="$$NAME 8000 3000 rynamo-seed:8000"'
 
 
 networks:

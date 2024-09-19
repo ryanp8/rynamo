@@ -15,12 +15,14 @@ import java.util.stream.Stream;
 public class ConsistentHashRing {
     private List<RingEntry> ring;
     private int size;
+    private String seedNodeId;
 
-    public ConsistentHashRing(int size) {
+    public ConsistentHashRing(int size, String seedNodeId) {
         this.size = size;
         this.ring = Stream.generate(InactiveEntry::new)
                 .limit(size)
                 .collect(Collectors.toList());
+        this.seedNodeId = seedNodeId;
     }
 
     public ConsistentHashRing(List<RingEntry> ring) {
@@ -30,7 +32,7 @@ public class ConsistentHashRing {
 
     public void init(String host, int rpcPort) {
         ActiveEntry self = new ActiveEntry(host, rpcPort, 1);
-        ActiveEntry seed = new ActiveEntry("localhost", 8000, 1);
+        ActiveEntry seed = new ActiveEntry(seedNodeId, 1);
         long currentVersion = seed.getRemoteEntryVersion(self);
         self.setVersion(currentVersion + 1);
         this.ring.set(this.getNodeIndex(self.getId()), self);

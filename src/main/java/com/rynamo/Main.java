@@ -8,7 +8,7 @@ public class Main {
         int R = 2;
         int W = 2;
         try {
-            Node node = new Node(N, R, W, args[0], Integer.parseInt(args[1]), Integer.parseInt(args[2]));
+            Node node = new Node(N, R, W, args[0], Integer.parseInt(args[1]), Integer.parseInt(args[2]), args[3]);
             node.start();
         } catch (Exception e) {
             System.err.println(e.getMessage());

@@ -13,7 +13,6 @@ import com.rynamo.ring.ConsistentHashRing;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class ActiveEntry extends RingEntry {
@@ -34,6 +33,16 @@ public class ActiveEntry extends RingEntry {
         this.storageStub = StorageGrpc.newBlockingStub(this.chan);
     }
 
+    public ActiveEntry(String id, int version) {
+        String[] parts = id.split(":");
+        this.host = parts[0];
+        this.port = Integer.parseInt(parts[1]);
+        this.id = id;
+        this.version = version;
+        this.chan = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+        this.exchangeStub = ExchangeMembershipGrpc.newBlockingStub(this.chan);
+        this.storageStub = StorageGrpc.newBlockingStub(this.chan);
+    }
     public ActiveEntry(RingEntryMessage msg) {
         this(msg.getHost(), msg.getPort(), msg.getVersion());
     }
