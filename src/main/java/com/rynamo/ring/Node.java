@@ -93,8 +93,9 @@ public class Node {
     private void exchangeRings(ActiveEntry dst) {
         ClusterMessage cm = this.ring.getClusterMessage();
         try {
-            List<RingEntry> otherRing = dst.exchange(cm);
-            this.ring.merge(otherRing);
+            ConsistentHashRing recv = dst.exchange(cm);
+            this.ring.merge(recv);
+            recv.killRing();
         } catch (StatusRuntimeException e) {
             System.err.printf("Tried to exchange with %s but dst was unavailable\n", dst);
             this.ring.kill(this.ring.getNodeIndex(dst), dst.getVersion() + 1);

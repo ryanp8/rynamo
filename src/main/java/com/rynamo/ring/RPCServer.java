@@ -6,11 +6,14 @@ import com.rynamo.db.Row;
 import com.rynamo.grpc.storage.*;
 import com.rynamo.grpc.membership.*;
 import com.rynamo.ring.coordinate.CoordinateResponse;
+import com.rynamo.ring.entry.ActiveEntry;
+import com.rynamo.ring.entry.RingEntry;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class RPCServer implements Runnable {
@@ -72,7 +75,9 @@ public class RPCServer implements Runnable {
         public void exchange(ClusterMessage request, StreamObserver<ClusterMessage> responseObserver) {
             ConsistentHashRing receiverRing = RPCServer.this.node.getRing();
             responseObserver.onNext(receiverRing.getClusterMessage());
-            receiverRing.merge(ConsistentHashRing.clusterMessageToRing(request));
+            ConsistentHashRing receivedRing = ConsistentHashRing.clusterMessageToRing(request);
+            receiverRing.merge(receivedRing);
+            receivedRing.killRing();
             responseObserver.onCompleted();
         }
 

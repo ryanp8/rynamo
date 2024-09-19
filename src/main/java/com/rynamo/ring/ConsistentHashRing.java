@@ -37,11 +37,13 @@ public class ConsistentHashRing {
         self.setVersion(currentVersion + 1);
         this.ring.set(this.getNodeIndex(self.getId()), self);
         this.ring.set(this.getNodeIndex(seed.getId()), seed);
-        this.merge(seed.exchange(this.getClusterMessage()));
+        ConsistentHashRing recv = seed.exchange(this.getClusterMessage());
+        this.merge(recv);
+        recv.killRing();
     }
 
-    public static List<RingEntry> clusterMessageToRing(ClusterMessage recv) {
-        List<RingEntry> otherRing = new ArrayList<RingEntry>();
+    public static ConsistentHashRing clusterMessageToRing(ClusterMessage recv) {
+        List<RingEntry> otherRing = new ArrayList<>();
         for (RingEntryMessage msg : recv.getNodeList()) {
             if (msg.getActive()) {
                 otherRing.add(new ActiveEntry(msg));
@@ -49,7 +51,7 @@ public class ConsistentHashRing {
                 otherRing.add(new InactiveEntry());
             }
         }
-        return otherRing;
+        return new ConsistentHashRing(otherRing);
     }
 
     synchronized public int getNodeIndex(String key) {
@@ -124,7 +126,8 @@ public class ConsistentHashRing {
         return builder.build();
     }
 
-    synchronized void merge(List<RingEntry> otherRing) {
+    synchronized void merge(ConsistentHashRing recv) {
+        List<RingEntry> otherRing = recv.ring;
         for (int i = 0; i < otherRing.size(); i++) {
             RingEntry local = this.ring.get(i);
             RingEntry other = otherRing.get(i);
@@ -156,6 +159,12 @@ public class ConsistentHashRing {
     public synchronized void kill(int idx, long version) {
         this.kill(idx);
         this.ring.get(idx).setVersion(version);
+    }
+
+    synchronized void killRing() {
+        for (int i = 0; i < this.ring.size(); i++) {
+            this.kill(i);
+        }
     }
 
     @Override

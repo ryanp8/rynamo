@@ -60,7 +60,7 @@ public class ActiveEntry extends RingEntry {
         this.chan.shutdownNow();
     }
 
-    public List<RingEntry> exchange(ClusterMessage src) {
+    public ConsistentHashRing exchange(ClusterMessage src) {
         ClusterMessage recv = this.exchangeStub.exchange(src);
         return ConsistentHashRing.clusterMessageToRing(recv);
     }
