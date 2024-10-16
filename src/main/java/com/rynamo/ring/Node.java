@@ -39,13 +39,20 @@ public class Node {
         this.coordinator = new Coordinator(this);
     }
 
+    /*
+    * Starts the components of the node
+    * */
     public void start() throws InterruptedException {
-        this.startRPCServer();
+        this.startRPCServer(); // This blocks because the RPC server needs to be running before membership can be sent
         this.startMembershipGossip();
         this.httpServer.start(this.clientPort);
         this.ring.init(host, this.rpcPort);
     }
 
+    /*
+    * Starts the RPC server in another thread, so the main thread is not blocked
+    * while listening for requests
+    * */
     public void startRPCServer() throws InterruptedException {
         Thread serverThread = new Thread(this.server);
         serverThread.start();
@@ -55,6 +62,10 @@ public class Node {
         }
     }
 
+    /*
+    * Creates a background timer that exchanges this node's cluster membership list
+    * with another random node.
+    * */
     public void startMembershipGossip() {
         TimerTask exchangeTimerTask = new TimerTask() {
             @Override
@@ -83,16 +94,29 @@ public class Node {
         return this.ring.getPreferenceList(key);
     }
 
+    /*
+    * Tries to exchange membership data with a random node in the ring. Does
+    * nothing if the random entry is inactive.
+    * */
     private void exchangeRings() {
         Optional<ActiveEntry> other = this.ring.getRandomEntry();
         other.ifPresent(this::exchangeRings);
     }
 
+    /*
+    * Exchanges membership data with a node that is known to be active.
+    * */
     private void exchangeRings(ActiveEntry dst) {
+        // Build the message containing ring membership data, so it can be sent as an RPC
         ClusterMessage cm = this.ring.getClusterMessage();
         try {
+            // Send my ring to the other node
             ConsistentHashRing recv = dst.exchange(cm);
             this.ring.merge(recv);
+
+            // Clean up channels from the incoming ring
+            // TODO: Might not be the best idea to store the incoming as a full ConsistentHashRing
+            // object since it creates all these unnecessary channels
             recv.killRing();
         } catch (StatusRuntimeException e) {
             System.err.printf("Tried to exchange with %s but dst was unavailable\n", dst);
@@ -100,6 +124,7 @@ public class Node {
         }
     }
 
+    // Wrappers to the coordinator methods
     public CoordinateResponse coordinateGet(String key) {
         return this.coordinator.coordinateGet(key);
     }

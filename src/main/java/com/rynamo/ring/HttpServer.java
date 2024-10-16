@@ -11,6 +11,11 @@ import io.javalin.http.Context;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+
+/*
+* Gateway for clients to interact with the database
+* Runs a javalin server that supports GET and PUT requests
+* */
 public class HttpServer {
     final private Node node;
     final private Javalin server;
@@ -31,6 +36,11 @@ public class HttpServer {
         ctx.status(200);
     }
 
+    /*
+    * Forwards the GET request to the top node in the key's preference list
+    * by telling that node to start the coordination process.
+    * If the node successfully coordinates, responds with all values received by the coordinator
+    * */
     private void handleGet(Context ctx) {
         String key = ctx.pathParam("key");
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
@@ -53,6 +63,12 @@ public class HttpServer {
         ctx.status(400);
     }
 
+
+    /*
+     * Forwards the PUT request to the top node in the key's preference list
+     * by telling that node to start the coordination process.
+     * If the node successfully coordinates, responds with the version of the write
+     * */
     private void handlePut(Context ctx) {
         String key = ctx.pathParam("key");
         String val = ctx.pathParam("val");

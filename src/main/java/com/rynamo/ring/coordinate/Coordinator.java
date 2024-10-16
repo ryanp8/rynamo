@@ -19,6 +19,10 @@ public class Coordinator {
         this.node = node;
     }
 
+
+    /*
+    * Concurrently tries to GET from replicas
+    * */
     public CoordinateResponse coordinateGet(String key) {
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         List<byte[]> results = new ArrayList<>();
@@ -51,6 +55,9 @@ public class Coordinator {
         }
     }
 
+    /*
+    * Helper function to generate the GET tasks passed to the thread pool
+    * */
     private List<Callable<List<ByteString>>> calculateGetTasks(String key, List<RingEntry> preferenceList) {
         List<Callable<List<ByteString>>> tasks = new ArrayList<>();
         int activeNodesTried = 0;
@@ -72,6 +79,9 @@ public class Coordinator {
         return tasks;
     }
 
+    /*
+    * Concurrently tries to PUT to replicas. \
+    * */
     public CoordinateResponse coordinatePut(String key, long version, byte[] val) {
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         List<Callable<Long>> tasks = this.calculatePutTasks(key, version, val, preferenceList);
@@ -103,6 +113,9 @@ public class Coordinator {
         return new CoordinateResponse(0, writes, null);
     }
 
+    /*
+     * Helper function to generate the PUT tasks passed to the thread pool
+     * */
     private List<Callable<Long>> calculatePutTasks(String key, long version, byte[] val,
                                                                List<RingEntry> preferenceList) {
         List<Callable<Long>> tasks = new ArrayList<>();

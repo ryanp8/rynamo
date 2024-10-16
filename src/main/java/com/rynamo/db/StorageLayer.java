@@ -9,6 +9,13 @@ import org.rocksdb.RocksIterator;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+
+/*
+* Wrapper around RocksDB
+*
+* Entries are stored in the form nodeID/key/version/id: value
+* Each instance also stores the most recent version for each key in the form key: version
+* */
 public class StorageLayer {
 
     private final RocksDB db;
@@ -40,8 +47,11 @@ public class StorageLayer {
             e.printStackTrace();
         }
     }
+
+    /*
+    * Returns the version and value for the most up-to-date value associated with the key
+    * */
     public Results get(String key) throws RocksDBException {
-        byte[] keyBytes = key.getBytes();
         // existence check
         long version = this.getVersion(key);
         if (version == -1) {
@@ -60,20 +70,28 @@ public class StorageLayer {
         return new Results(version, results);
     }
 
-    public long put(String key, long previousVersion, byte[] value) throws RocksDBException{
+    /*
+    * Puts a key-value pair into the database. Provides the incoming version to override the old version
+     * if the incoming is newer. The version parameter comes all the way from the put coordinator. So if the
+     * coordinator's last known write is newer than this node's last known write, it should be updated
+     *
+    * */
+    public long put(String key, long currentVersion, byte[] value) throws RocksDBException{
         byte[] keyBytes = key.getBytes();
         // existence check
-        long currentVersion = this.getVersion(key);
+        long myVersion = this.getVersion(key);
 
-        if (previousVersion >= currentVersion) {
-            currentVersion = Math.max(currentVersion + 1, previousVersion);
-            this.db.put(keyBytes, Longs.toByteArray(currentVersion));
+        if (currentVersion >= myVersion) {
+            // If my version is the same as the incoming's current version, then increment it
+            // If the incoming version is greater, then override my version to be that one
+            myVersion = Math.max(myVersion + 1, currentVersion);
+            this.db.put(keyBytes, Longs.toByteArray(myVersion));
         }
 
         // Give each key/version pair a random id to handle concurrent values for a version
-        byte[] versionedKey = String.format("%s/%s/%d/%s", this.nodeId, key, currentVersion, UUID.randomUUID())
+        byte[] versionedKey = String.format("%s/%s/%d/%s", this.nodeId, key, myVersion, UUID.randomUUID())
                 .getBytes(StandardCharsets.UTF_8);
         this.db.put(versionedKey, value);
-        return currentVersion;
+        return myVersion;
     }
 }
