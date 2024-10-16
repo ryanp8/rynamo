@@ -1,6 +1,5 @@
 package com.rynamo.ring;
 
-import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.rynamo.grpc.storage.GetResponse;
 import com.rynamo.grpc.storage.PutResponse;
@@ -10,13 +9,12 @@ import io.javalin.Javalin;
 import io.javalin.http.Context;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 
-public class ClientServer {
+public class HttpServer {
     final private Node node;
     final private Javalin server;
-    public ClientServer(Node node) {
+    public HttpServer(Node node) {
         this.node = node;
         this.server = Javalin.create()
                 .get("/health", this::handleHealth)

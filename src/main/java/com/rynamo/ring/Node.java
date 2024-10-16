@@ -21,7 +21,7 @@ public class Node {
     private final String id;
     private final int clientPort;
     private final StorageLayer db;
-    private final ClientServer clientServer;
+    private final HttpServer httpServer;
     private final Coordinator coordinator;
 
     public Node(int N, int R, int W, String host, int rpcPort, int clientPort, String seedNode) throws org.rocksdb.RocksDBException {
@@ -34,7 +34,7 @@ public class Node {
         this.clientPort = clientPort;
         this.db = new StorageLayer(this.id);
         this.server = new RPCServer(this.rpcPort, this);
-        this.clientServer = new ClientServer(this);
+        this.httpServer = new HttpServer(this);
         this.ring = new ConsistentHashRing(10, seedNode);
         this.coordinator = new Coordinator(this);
     }
@@ -42,7 +42,7 @@ public class Node {
     public void start() throws InterruptedException {
         this.startRPCServer();
         this.startMembershipGossip();
-        this.clientServer.start(this.clientPort);
+        this.httpServer.start(this.clientPort);
         this.ring.init(host, this.rpcPort);
     }
 
