@@ -81,6 +81,19 @@ public class ActiveEntry extends RingEntry {
                 .setKey(key)
                 .setValue(ByteString.copyFrom(value))
                 .setVersion(version)
+                .setIntendedNode(this.id)
+                .build();
+        return this.storageStub.put(request);
+    }
+
+    // Used for hinted handoff. Send a request to a node that may not be the correct one
+    // when the desired one is unavailable
+    public PutResponse put(String key, long version, byte[] value, String dst) {
+        PutRequest request = PutRequest.newBuilder()
+                .setKey(key)
+                .setValue(ByteString.copyFrom(value))
+                .setVersion(version)
+                .setIntendedNode(dst)
                 .build();
         return this.storageStub.put(request);
     }

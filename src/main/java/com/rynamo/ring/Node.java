@@ -1,13 +1,11 @@
 package com.rynamo.ring;
 
-import com.rynamo.db.Row;
 import com.rynamo.ring.coordinate.CoordinateResponse;
 import com.rynamo.ring.coordinate.Coordinator;
 import com.rynamo.db.StorageLayer;
 import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.ring.entry.*;
 import io.grpc.*;
-import org.rocksdb.RocksDBException;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;

@@ -1,13 +1,11 @@
 package com.rynamo.db;
 
 import com.google.common.primitives.Longs;
-import com.rynamo.ring.Node;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -42,12 +40,12 @@ public class StorageLayer {
             e.printStackTrace();
         }
     }
-    public Row get(String key) throws RocksDBException {
+    public Results get(String key) throws RocksDBException {
         byte[] keyBytes = key.getBytes();
         // existence check
         long version = this.getVersion(key);
         if (version == -1) {
-            return new Row(0, null);
+            return new Results(0, null);
         }
         String prefix = String.format("%s/%s/%d", this.nodeId, key, version); // key/version
 
@@ -59,7 +57,7 @@ public class StorageLayer {
             if (!foundKey.startsWith(prefix)) break;
             results.add(iterator.value());
         }
-        return new Row(version, results);
+        return new Results(version, results);
     }
 
     public long put(String key, long previousVersion, byte[] value) throws RocksDBException{

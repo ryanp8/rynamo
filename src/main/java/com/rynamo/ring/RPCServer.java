@@ -2,18 +2,15 @@ package com.rynamo.ring;
 
 
 import com.google.protobuf.ByteString;
-import com.rynamo.db.Row;
+import com.rynamo.db.Results;
 import com.rynamo.grpc.storage.*;
 import com.rynamo.grpc.membership.*;
 import com.rynamo.ring.coordinate.CoordinateResponse;
-import com.rynamo.ring.entry.ActiveEntry;
-import com.rynamo.ring.entry.RingEntry;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class RPCServer implements Runnable {
@@ -103,7 +100,7 @@ public class RPCServer implements Runnable {
         public void get(GetRequest request, StreamObserver<GetResponse> responseObserver) {
             GetResponse.Builder responseBuilder = GetResponse.newBuilder();
             try {
-                Row results = RPCServer.this.node.db().get(request.getKey());
+                Results results = RPCServer.this.node.db().get(request.getKey());
 
                 for (byte[] result : results.values()) {
                     responseBuilder.addValue(ByteString.copyFrom(result));

@@ -1,10 +1,8 @@
 package com.rynamo.ring.coordinate;
 
 import com.google.protobuf.ByteString;
-import com.rynamo.db.Row;
 import com.rynamo.grpc.storage.GetResponse;
 import com.rynamo.grpc.storage.PutResponse;
-import com.rynamo.grpc.storage.StorageGrpc;
 import com.rynamo.ring.Node;
 import com.rynamo.ring.entry.ActiveEntry;
 import com.rynamo.ring.entry.RingEntry;
@@ -12,7 +10,6 @@ import io.grpc.StatusRuntimeException;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.concurrent.ForkJoinTask.invokeAll;
 
@@ -23,7 +20,6 @@ public class Coordinator {
     }
 
     public CoordinateResponse coordinateGet(String key) {
-        System.out.println(key);
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
         List<byte[]> results = new ArrayList<>();
         List<Callable<List<ByteString>>> tasks = calculateGetTasks(key, preferenceList);
@@ -98,7 +94,7 @@ public class Coordinator {
                     Thread.currentThread().interrupt(); // ignore/reset
                 }
             }
-            if (writes>= this.node.W) {
+            if (writes >= this.node.W) {
                 this.node.db().setVersion(key, version + 1);
             }
         } catch (InterruptedException e) {
