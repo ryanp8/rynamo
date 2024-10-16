@@ -35,11 +35,18 @@ public class ConsistentHashRing {
         ActiveEntry seed = new ActiveEntry(seedNodeId, 1);
         long currentVersion = seed.getRemoteEntryVersion(self);
         self.setVersion(currentVersion + 1);
-        this.ring.set(this.getNodeIndex(self.getId()), self);
-        this.ring.set(this.getNodeIndex(seed.getId()), seed);
+        this.set(this.getNodeIndex(self.getId()), self);
+        this.set(this.getNodeIndex(seed.getId()), seed);
         ConsistentHashRing recv = seed.exchange(this.getClusterMessage());
         this.merge(recv);
         recv.killRing();
+    }
+
+    void set(int i, RingEntry newEntry) {
+        if (this.ring.get(i) instanceof ActiveEntry active) {
+            active.kill();
+        }
+        this.ring.set(i, newEntry);
     }
 
     public static ConsistentHashRing clusterMessageToRing(ClusterMessage recv) {
@@ -83,7 +90,7 @@ public class ConsistentHashRing {
         int start = this.getNodeIndex(key);
         List<RingEntry> preferenceList = new ArrayList<>();
         for (int i = 0; i < this.size; i++) {
-            preferenceList.add(this.ring.get(start + i % this.size));
+            preferenceList.add(this.ring.get((start + i) % this.size));
         }
         return preferenceList;
     }
@@ -136,13 +143,15 @@ public class ConsistentHashRing {
                 if (local instanceof ActiveEntry && other instanceof InactiveEntry) {
                     this.kill(i, other.getVersion());
                 } else if (local instanceof InactiveEntry && other instanceof ActiveEntry active) {
-                    this.ring.set(i, new ActiveEntry(active.getHost(), active.getPort(), active.getVersion()));
+                    this.set(i, new ActiveEntry(active.getHost(), active.getPort(), active.getVersion()));
                 } else {
                     local.setVersion(other.getVersion());
                 }
             } else if (local.getVersion() == other.getVersion()) {
                 if (local instanceof ActiveEntry && other instanceof InactiveEntry) {
                     this.kill(i, other.getVersion());
+                } else if (local instanceof InactiveEntry && other instanceof ActiveEntry active) {
+                    this.set(i, new ActiveEntry(active.getHost(), active.getPort(), active.getVersion()));
                 }
             }
         }
