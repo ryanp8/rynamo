@@ -20,5 +20,3 @@ You can test nodes using the bash scripts and docker. The `run.sh` script will s
     - http is used to communicate with the cluster from an outside client
         - The client can contact any node, which will use gRPC to forward the operation to the appropriate one.
 
-
-Improved upon [initial version](https://github.com/ryanp8/distributed-kv-store)
