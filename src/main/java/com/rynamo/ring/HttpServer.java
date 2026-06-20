@@ -2,9 +2,11 @@ package com.rynamo.ring;
 
 import com.google.protobuf.ByteString;
 import com.rynamo.grpc.storage.GetResponse;
+import com.rynamo.grpc.storage.Record;
+import com.rynamo.ring.membership.ActiveEntry;
+import com.rynamo.ring.membership.RingEntry;
 import com.rynamo.grpc.storage.PutResponse;
-import com.rynamo.ring.entry.ActiveEntry;
-import com.rynamo.ring.entry.RingEntry;
+
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 
@@ -48,12 +50,24 @@ public class HttpServer {
             if (entry instanceof ActiveEntry activeEntry) {
                 try {
                     GetResponse response = activeEntry.coordinateGet(key);
-                    if (!response.getValueList().isEmpty()) {
+                    List<Record> recordList = response.getRecordList();
+                    if (!recordList.isEmpty()) {
                         ctx.status(200);
-                        StringBuilder body = new StringBuilder();
-                        for (ByteString value : response.getValueList()) {
-                            body.append(new String(value.toByteArray())).append(", ");
+                        StringBuilder body = new StringBuilder("[");
+                        for (int i = 0; i < recordList.size(); i++) {
+                            Record r = recordList.get(i);
+                            StringBuilder recordString = new StringBuilder("{value: ");
+                            recordString.append(new String(r.getValue().toByteArray()))
+                                    .append(", ")
+                                    .append("version: ")
+                                    .append(r.getVersion())
+                                    .append("}");
+                            body.append(recordString);
+                            if (i < recordList.size() - 1) {
+                                body.append(", ");
+                            }
                         }
+                        body.append("\n");
                         ctx.result(body.toString().getBytes(StandardCharsets.UTF_8));
                         return;
                     }

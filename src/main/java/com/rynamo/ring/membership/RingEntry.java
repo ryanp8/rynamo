@@ -1,4 +1,4 @@
-package com.rynamo.ring.entry;
+package com.rynamo.ring.membership;
 
 public abstract class RingEntry {
 

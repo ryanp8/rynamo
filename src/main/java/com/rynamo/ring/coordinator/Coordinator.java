@@ -1,17 +1,16 @@
-package com.rynamo.ring.coordinate;
+package com.rynamo.ring.coordinator;
 
-import com.google.protobuf.ByteString;
 import com.rynamo.grpc.storage.GetResponse;
 import com.rynamo.grpc.storage.PutResponse;
+import com.rynamo.grpc.storage.Record;
 import com.rynamo.ring.Node;
-import com.rynamo.ring.entry.ActiveEntry;
-import com.rynamo.ring.entry.RingEntry;
+import com.rynamo.ring.membership.ActiveEntry;
+import com.rynamo.ring.membership.RingEntry;
+
 import io.grpc.StatusRuntimeException;
 
 import java.util.*;
 import java.util.concurrent.*;
-
-import static java.util.concurrent.ForkJoinTask.invokeAll;
 
 public class Coordinator {
     private final Node node;
@@ -19,26 +18,25 @@ public class Coordinator {
         this.node = node;
     }
 
-
     /*
     * Concurrently tries to GET from replicas
     * */
     public CoordinateResponse coordinateGet(String key) {
         List<RingEntry> preferenceList = this.node.getPreferenceList(key);
-        List<byte[]> results = new ArrayList<>();
-        List<Callable<List<ByteString>>> tasks = calculateGetTasks(key, preferenceList);
+        List<Record> results = new ArrayList<>();
+        List<Callable<List<Record>>> tasks = calculateGetTasks(key, preferenceList);
 
         int cores = Runtime.getRuntime().availableProcessors();
         int reads = 0;
         ExecutorService taskExecutor = Executors.newFixedThreadPool(cores);
         try {
-            List<Future<List<ByteString>>> taskResults = taskExecutor.invokeAll(tasks);
-            for (Future<List<ByteString>> future : taskResults) {
+            List<Future<List<Record>>> taskResults = taskExecutor.invokeAll(tasks);
+            for (Future<List<Record>> future : taskResults) {
                 try {
-                    List<ByteString> oneTaskResults = future.get();
+                    List<Record> oneTaskResults = future.get();
                     if (!oneTaskResults.isEmpty()) {
-                        for (ByteString value : oneTaskResults) {
-                            results.add(value.toByteArray());
+                        for (Record r : oneTaskResults) {
+                            results.add(r);
                         }
                         reads++;
                     }
@@ -58,8 +56,8 @@ public class Coordinator {
     /*
     * Helper function to generate the GET tasks passed to the thread pool
     * */
-    private List<Callable<List<ByteString>>> calculateGetTasks(String key, List<RingEntry> preferenceList) {
-        List<Callable<List<ByteString>>> tasks = new ArrayList<>();
+    private List<Callable<List<Record>>> calculateGetTasks(String key, List<RingEntry> preferenceList) {
+        List<Callable<List<Record>>> tasks = new ArrayList<>();
         int activeNodesTried = 0;
         for (int i = 0; i < preferenceList.size() && activeNodesTried < this.node.N; i++) {
             RingEntry entry = preferenceList.get(i);
@@ -68,7 +66,7 @@ public class Coordinator {
                 tasks.add(() -> {
                     try {
                         GetResponse response = active.get(key);
-                        return response.getValueList();
+                        return response.getRecordList();
                     } catch (StatusRuntimeException e) {
                         e.printStackTrace();
                         return new ArrayList<>() {};

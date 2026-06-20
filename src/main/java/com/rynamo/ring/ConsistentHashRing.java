@@ -2,9 +2,9 @@ package com.rynamo.ring;
 
 import com.rynamo.grpc.membership.ClusterMessage;
 import com.rynamo.grpc.membership.RingEntryMessage;
-import com.rynamo.ring.entry.ActiveEntry;
-import com.rynamo.ring.entry.InactiveEntry;
-import com.rynamo.ring.entry.RingEntry;
+import com.rynamo.ring.membership.ActiveEntry;
+import com.rynamo.ring.membership.InactiveEntry;
+import com.rynamo.ring.membership.RingEntry;
 
 import java.security.*;
 import java.util.*;

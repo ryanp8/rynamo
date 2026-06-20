@@ -1,7 +1,8 @@
 package com.rynamo;
 
-import com.rynamo.db.StorageLayer;
 import com.rynamo.ring.Node;
+import com.rynamo.storage.StorageLayer;
+
 import org.rocksdb.RocksDB;
 
 public class Main {

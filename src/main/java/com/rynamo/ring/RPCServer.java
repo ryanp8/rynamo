@@ -2,10 +2,12 @@ package com.rynamo.ring;
 
 
 import com.google.protobuf.ByteString;
-import com.rynamo.db.Results;
 import com.rynamo.grpc.storage.*;
+import com.rynamo.grpc.storage.Record;
+import com.rynamo.ring.coordinator.CoordinateResponse;
 import com.rynamo.grpc.membership.*;
-import com.rynamo.ring.coordinate.CoordinateResponse;
+import com.rynamo.storage.Results;
+
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.rocksdb.RocksDBException;
@@ -103,7 +105,9 @@ public class RPCServer implements Runnable {
                 Results results = RPCServer.this.node.db().get(request.getKey());
 
                 for (byte[] result : results.values()) {
-                    responseBuilder.addValue(ByteString.copyFrom(result));
+                    Record.Builder recordBuilder = Record.newBuilder();
+                    recordBuilder.setValue(ByteString.copyFrom(result)).setVersion(results.version());
+                    responseBuilder.addRecord(recordBuilder.build());
                 }
             } catch (RocksDBException ignored) {
             }
@@ -132,9 +136,7 @@ public class RPCServer implements Runnable {
             GetResponse.Builder responseBuilder = GetResponse.newBuilder();
             System.out.println(result.R());
             if (result.R() >= R) {
-                for (byte[] value : result.values()) {
-                    responseBuilder.addValue(ByteString.copyFrom(value));
-                }
+                responseBuilder.addAllRecord(result.records());
             }
             responseObserver.onNext(responseBuilder.build());
             responseObserver.onCompleted();

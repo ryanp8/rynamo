@@ -16,7 +16,7 @@ message GetRequest {
 }
 
 message GetResponse {
-    repeated bytes value = 1;
+    repeated Record record = 1;
 }
 
 message PutRequest {

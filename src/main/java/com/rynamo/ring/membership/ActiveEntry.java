@@ -1,4 +1,4 @@
-package com.rynamo.ring.entry;
+package com.rynamo.ring.membership;
 
 import com.google.protobuf.ByteString;
 import com.rynamo.grpc.membership.ClusterMessage;

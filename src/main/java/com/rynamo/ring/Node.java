@@ -1,10 +1,11 @@
 package com.rynamo.ring;
 
-import com.rynamo.ring.coordinate.CoordinateResponse;
-import com.rynamo.ring.coordinate.Coordinator;
-import com.rynamo.db.StorageLayer;
 import com.rynamo.grpc.membership.ClusterMessage;
-import com.rynamo.ring.entry.*;
+import com.rynamo.ring.coordinator.CoordinateResponse;
+import com.rynamo.ring.coordinator.Coordinator;
+import com.rynamo.ring.membership.*;
+import com.rynamo.storage.StorageLayer;
+
 import io.grpc.*;
 
 import java.util.*;

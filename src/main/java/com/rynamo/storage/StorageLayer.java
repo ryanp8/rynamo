@@ -1,4 +1,4 @@
-package com.rynamo.db;
+package com.rynamo.storage;
 
 import com.google.common.primitives.Longs;
 import org.rocksdb.Options;
@@ -84,7 +84,7 @@ public class StorageLayer {
         if (currentVersion >= myVersion) {
             // If my version is the same as the incoming's current version, then increment it
             // If the incoming version is greater, then override my version to be that one
-            myVersion = Math.max(myVersion + 1, currentVersion);
+            myVersion = currentVersion + 1;
             this.db.put(keyBytes, Longs.toByteArray(myVersion));
         }
 
